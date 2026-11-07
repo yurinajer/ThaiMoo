@@ -1,0 +1,167 @@
+{
+  "description": "泰语声调规则表 - 数据来源：标准泰语教材",
+  "tones": [
+    { "id": "mid", "name": "中平", "symbol": "—", "mark": "ไม่มี" },
+    { "id": "low", "name": "低平", "symbol": "˨˩", "mark": "เอก" },
+    { "id": "falling", "name": "降调", "symbol": "˥˩", "mark": "โท" },
+    { "id": "high", "name": "高升", "symbol": "˦˥", "mark": "ตรี" },
+    { "id": "rising", "name": "低升", "symbol": "˨˩˦", "mark": "จัตวา" }
+  ],
+  "toneMarks": [
+    { "char": "่", "name": "ไม้เอก (mai ek)", "position": "above" },
+    { "char": "้", "name": "ไม้โท (mai tho)", "position": "above" },
+    { "char": "๊", "name": "ไม้ตรี (mai tri)", "position": "above" },
+    { "char": "๋", "name": "ไม้จัตวา (mai chattawa)", "position": "above" }
+  ],
+  "rules": {
+    "midConsonant": {
+      "description": "中辅音声调规则",
+      "consonantClass": "mid",
+      "cases": [
+        {
+          "condition": "无声调符号 + 活音节",
+          "vowelLength": "any",
+          "finalType": "live",
+          "toneMark": "none",
+          "result": "mid",
+          "resultName": "中平"
+        },
+        {
+          "condition": "无声调符号 + 死音节",
+          "vowelLength": "any",
+          "finalType": "dead",
+          "toneMark": "none",
+          "result": "mid",
+          "resultName": "中平"
+        },
+        {
+          "condition": "ไม้เอก (่)",
+          "toneMark": "่",
+          "result": "low",
+          "resultName": "低平"
+        },
+        {
+          "condition": "ไม้โท (้)",
+          "toneMark": "้",
+          "result": "falling",
+          "resultName": "降调"
+        },
+        {
+          "condition": "ไม้ตรี (๊)",
+          "toneMark": "๊",
+          "result": "high",
+          "resultName": "高升"
+        },
+        {
+          "condition": "ไม้จัตวา (๋)",
+          "toneMark": "๋",
+          "result": "rising",
+          "resultName": "低升"
+        }
+      ]
+    },
+    "highConsonant": {
+      "description": "高辅音声调规则",
+      "consonantClass": "high",
+      "cases": [
+        {
+          "condition": "无声调符号",
+          "toneMark": "none",
+          "result": "rising",
+          "resultName": "低升"
+        },
+        {
+          "condition": "ไม้เอก (่)",
+          "toneMark": "่",
+          "result": "low",
+          "resultName": "低平"
+        },
+        {
+          "condition": "ไม้โท (้)",
+          "toneMark": "้",
+          "result": "falling",
+          "resultName": "降调"
+        },
+        {
+          "condition": "ไม้ตรี (๊)",
+          "toneMark": "๊",
+          "result": "high",
+          "resultName": "高升"
+        },
+        {
+          "condition": "ไม้จัตวา (๋)",
+          "toneMark": "๋",
+          "result": "rising",
+          "resultName": "低升"
+        }
+      ]
+    },
+    "lowConsonant": {
+      "description": "低辅音声调规则",
+      "consonantClass": "low",
+      "cases": [
+        {
+          "condition": "无声调符号 + 长元音 + 活音节",
+          "vowelLength": "long",
+          "finalType": "live",
+          "toneMark": "none",
+          "result": "mid",
+          "resultName": "中平"
+        },
+        {
+          "condition": "无声调符号 + 短元音 + 活音节",
+          "vowelLength": "short",
+          "finalType": "live",
+          "toneMark": "none",
+          "result": "high",
+          "resultName": "高升"
+        },
+        {
+          "condition": "无声调符号 + 死音节",
+          "finalType": "dead",
+          "toneMark": "none",
+          "result": "mid",
+          "resultName": "中平"
+        },
+        {
+          "condition": "ไม้เอก (่)",
+          "toneMark": "่",
+          "result": "falling",
+          "resultName": "降调"
+        },
+        {
+          "condition": "ไม้โท (้)",
+          "toneMark": "้",
+          "result": "high",
+          "resultName": "高升"
+        },
+        {
+          "condition": "ไม้ตรี (๊)",
+          "toneMark": "๊",
+          "result": "mid",
+          "resultName": "中平"
+        },
+        {
+          "condition": "ไม้จัตวา (๋)",
+          "toneMark": "๋",
+          "result": "low",
+          "resultName": "低平"
+        }
+      ]
+    }
+  },
+  "vowelLengths": {
+    "short": ["ะ", "ั", "ิ", "ึ", "ุ"],
+    "long": ["า", "ี", "ื", "ู", "เ", "แ", "โ", "ใ", "ไ", "อ", "ะa"]
+  },
+  "syllableTypes": {
+    "live": {
+      "description": "活音节：以元音或鼻音尾（ม น ง）结尾",
+      "finals": ["m", "n", "ng", null]
+    },
+    "dead": {
+      "description": "死音节：以塞音尾（ป/บ พ, ต/ด ท, ก ค）或短元音结尾",
+      "finals": ["p", "t", "k"]
+    }
+  }
+}

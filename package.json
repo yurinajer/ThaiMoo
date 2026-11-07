@@ -1,0 +1,22 @@
+{
+  "name": "thai-learn",
+  "version": "1.0.0",
+  "description": "泰语学习 PWA - 间隔复习 + 声调训练 + 辅音分类",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "dexie": "^4.0.11",
+    "ts-fsrs": "^4.5.2"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.3",
+    "vite": "^6.3.5",
+    "vite-plugin-pwa": "^1.0.0",
+    "workbox-precaching": "^7.3.0",
+    "workbox-routing": "^7.3.0"
+  }
+}

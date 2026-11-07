@@ -1,0 +1,209 @@
+{
+  "description": "泰语拼写-读音对照规则",
+  "silentLetters": {
+    "description": "不发音字母",
+    "rules": [
+      {
+        "pattern": "รร (ไม้ม้วน)",
+        "pronunciation": "an/am",
+        "examples": [
+          { "word": "กรรไกร", "reading": "กรอ-ไกร", "meaning": "剪刀" },
+          { "word": "สรรเสริญ", "reading": "สัน-เสิน", "meaning": "赞美" }
+        ]
+      },
+      {
+        "pattern": " silent อ in some words",
+        "pronunciation": "不发音",
+        "examples": [
+          { "word": "อาหาร", "reading": "อา-หาน", "meaning": "食物" }
+        ]
+      }
+    ]
+  },
+  "finalConsonantConversion": {
+    "description": "尾辅音转换规则 - 实际发音与书写不同",
+    "rules": [
+      {
+        "written": "ด",
+        "pronounced": "t",
+        "description": "尾辅音 ด 发 t 音",
+        "examples": [
+          { "word": "กด", "reading": "kot", "meaning": "按" },
+          { "word": "ปิด", "reading": "pit", "meaning": "关" },
+          { "word": "ติด", "reading": "tit", "meaning": "贴/ติด" }
+        ]
+      },
+      {
+        "written": "ท",
+        "pronounced": "t",
+        "description": "尾辅音 ท 发 t 音",
+        "examples": [
+          { "word": "บาท", "reading": "bat", "meaning": "铢(货币单位)" },
+          { "word": "รถ", "reading": "rot", "meaning": "车" }
+        ]
+      },
+      {
+        "written": "ธ",
+        "pronounced": "t",
+        "description": "尾辅音 ธ 发 t 音",
+        "examples": [
+          { "word": "ศาสตร์", "reading": "sat", "meaning": "学科" }
+        ]
+      },
+      {
+        "written": "บ",
+        "pronounced": "p",
+        "description": "尾辅音 บ 发 p 音",
+        "examples": [
+          { "word": "ลบ", "reading": "lop", "meaning": "擦除" },
+          { "word": "รับ", "reading": "rap", "meaning": "接受" }
+        ]
+      },
+      {
+        "written": "ป",
+        "pronounced": "p",
+        "description": "尾辅音 ป 发 p 音",
+        "examples": [
+          { "word": "ชอบ", "reading": "chop", "meaning": "喜欢" },
+          { "word": "ตอบ", "reading": "top", "meaning": "回答" }
+        ]
+      },
+      {
+        "written": "พ",
+        "pronounced": "p",
+        "description": "尾辅音 พ 发 p 音",
+        "examples": [
+          { "word": "ลับ", "reading": "lap", "meaning": "秘密" }
+        ]
+      },
+      {
+        "written": "ฟ",
+        "pronounced": "p",
+        "description": "尾辅音 ฟ 发 p 音",
+        "examples": [
+          { "word": "र्फ", "reading": "rp", "meaning": "(外来词)" }
+        ]
+      },
+      {
+        "written": "ก",
+        "pronounced": "k",
+        "description": "尾辅音 ก 发 k 音",
+        "examples": [
+          { "word": "รัก", "reading": "rak", "meaning": "爱" },
+          { "word": "มาก", "reading": "mak", "meaning": "很/非常" }
+        ]
+      },
+      {
+        "written": "ค",
+        "pronounced": "k",
+        "description": "尾辅音 ค 发 k 音",
+        "examples": [
+          { "word": "ชีวิต", "reading": "chi-wit", "meaning": "生活" }
+        ]
+      },
+      {
+        "written": "ข",
+        "pronounced": "k",
+        "description": "尾辅音 ข 发 k 音",
+        "examples": [
+          { "word": "เลข", "reading": "lek", "meaning": "数字" }
+        ]
+      },
+      {
+        "written": "ฆ",
+        "pronounced": "k",
+        "description": "尾辅音 ฆ 发 k 音",
+        "examples": [
+          { "word": "ภาษา", "reading": "pha-sa", "meaning": "语言" }
+        ]
+      }
+    ]
+  },
+  "initialConsonantClusters": {
+    "description": "辅音连缀规则",
+    "rules": [
+      {
+        "pattern": "กร",
+        "pronunciation": "kr/k",
+        "examples": [
+          { "word": "กราฟ", "reading": "krap", "meaning": "图表" },
+          { "word": "ครอบครัว", "reading": "khrop-krua", "meaning": "家庭" }
+        ]
+      },
+      {
+        "pattern": "กล",
+        "pronunciation": "kl/k",
+        "examples": [
+          { "word": "กลาง", "reading": "klang", "meaning": "中间" },
+          { "word": "กลม", "reading": "klom", "meaning": "圆" }
+        ]
+      },
+      {
+        "pattern": "ตร",
+        "pronunciation": "tr",
+        "examples": [
+          { "word": "ตรอก", "reading": "trok", "meaning": "巷子" }
+        ]
+      },
+      {
+        "pattern": "ปร",
+        "pronunciation": "pr",
+        "examples": [
+          { "word": "ประ", "reading": "pra", "meaning": "前缀" }
+        ]
+      },
+      {
+        "pattern": "พล",
+        "pronunciation": "phl/ph",
+        "examples": [
+          { "word": "พลเมือง", "reading": "phon-la-muang", "meaning": "公民" }
+        ]
+      },
+      {
+        "pattern": "คร",
+        "pronunciation": "kh",
+        "examples": [
+          { "word": "ครู", "reading": "khru", "meaning": "老师" }
+        ]
+      },
+      {
+        "pattern": "คล",
+        "pronunciation": "kh",
+        "examples": [
+          { "word": "คน", "reading": "khon", "meaning": "人" }
+        ]
+      },
+      {
+        "pattern": "บล",
+        "pronunciation": "bl",
+        "examples": [
+          { "word": "บล็อก", "reading": "blok", "meaning": "块(外来词)" }
+        ]
+      },
+      {
+        "pattern": "สร",
+        "pronunciation": "s",
+        "examples": [
+          { "word": "สบาย", "reading": "sa-bai", "meaning": "舒服" }
+        ]
+      }
+    ]
+  },
+  "leadingHo": {
+    "description": "ห 引导规则",
+    "rules": [
+      {
+        "pattern": "ห + 低辅音",
+        "effect": "低辅音变为高音类处理",
+        "examples": [
+          { "word": "หม", "reading": "m (高音)", "detail": "ห + ม" },
+          { "word": "หน", "reading": "n (高音)", "detail": "ห + น" },
+          { "word": "หย", "reading": "y (高音)", "detail": "ห + ย" },
+          { "word": "หล", "reading": "l (高音)", "detail": "ห + ล" },
+          { "word": "หร", "reading": "r (高音)", "detail": "ห + ร" },
+          { "word": "หว", "reading": "w (高音)", "detail": "ห + ว" }
+        ]
+      }
+    ]
+  }
+}

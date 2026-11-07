@@ -1,0 +1,85 @@
+{
+  "description": "泰语44个辅音分类表 - 数据来源：标准泰语教材",
+  "classes": {
+    "mid": {
+      "name": "中辅音",
+      "nameThai": "พยัญชนะกลาง",
+      "consonants": [
+        { "char": "ก", "name": "ก ไก่", "pronunciation": "k", "meaning": "鸡" },
+        { "char": "จ", "name": "จ จาน", "pronunciation": "ch", "meaning": "盘子" },
+        { "char": "ฎ", "name": "ฎ ชฎา", "pronunciation": "d", "meaning": "尖顶帽" },
+        { "char": "ฏ", "name": "ฏ ปฏัก", "pronunciation": "t", "meaning": "矛" },
+        { "char": "ด", "name": "ด เด็ก", "pronunciation": "d", "meaning": "小孩" },
+        { "char": "ต", "name": "ต เต่า", "pronunciation": "t", "meaning": "乌龟" },
+        { "char": "บ", "name": "บ ใบไม้", "pronunciation": "b", "meaning": "树叶" },
+        { "char": "ป", "name": "ป ปลา", "pronunciation": "p", "meaning": "鱼" },
+        { "char": "อ", "name": "อ อ่าง", "pronunciation": "ʔ", "meaning": "水池" }
+      ]
+    },
+    "high": {
+      "name": "高辅音",
+      "nameThai": "พยัญชนะสูง",
+      "consonants": [
+        { "char": "ข", "name": "ข ไข่", "pronunciation": "kh", "meaning": "蛋" },
+        { "char": "ฃ", "name": "ฃ ขวด", "pronunciation": "kh", "meaning": "瓶子（废弃字母）" },
+        { "char": "ฉ", "name": "ฉ ฉิ่ง", "pronunciation": "ch", "meaning": "钹" },
+        { "char": "ฐ", "name": "ฐ ฐาน", "pronunciation": "th", "meaning": "底座" },
+        { "char": "ถ", "name": "ถ ถุง", "pronunciation": "th", "meaning": "袋子" },
+        { "char": "ผ", "name": "ผ ผึ้ง", "pronunciation": "ph", "meaning": "蜜蜂" },
+        { "char": "ฝ", "name": "ฝ ฝา", "pronunciation": "f", "meaning": "盖子" },
+        { "char": "ศ", "name": "ศ ศาลา", "pronunciation": "s", "meaning": "凉亭" },
+        { "char": "ษ", "name": "ษ ฤๅษี", "pronunciation": "s", "meaning": "仙人" },
+        { "char": "ส", "name": "ส เสือ", "pronunciation": "s", "meaning": "老虎" },
+        { "char": "ห", "name": "ห หีบ", "pronunciation": "h", "meaning": "箱子" }
+      ]
+    },
+    "low": {
+      "name": "低辅音",
+      "nameThai": "พยัญชนะต่ำ",
+      "consonants": [
+        { "char": "ค", "name": "ค ควาย", "pronunciation": "kh", "meaning": "水牛" },
+        { "char": "ฅ", "name": "ฅ คน", "pronunciation": "kh", "meaning": "人（废弃字母）" },
+        { "char": "ฆ", "name": "ฆ ระฆัง", "pronunciation": "kh", "meaning": "钟" },
+        { "char": "ง", "name": "ง งู", "pronunciation": "ng", "meaning": "蛇" },
+        { "char": "ช", "name": "ช ช้าง", "pronunciation": "ch", "meaning": "大象" },
+        { "char": "ซ", "name": "ซ โซ่", "pronunciation": "s", "meaning": "链条" },
+        { "char": "ฌ", "name": "ฌ เฌอ", "pronunciation": "ch", "meaning": "树" },
+        { "char": "ญ", "name": "ญ หญิง", "pronunciation": "y", "meaning": "女人" },
+        { "char": "ฑ", "name": "ฑ มณโฑ", "pronunciation": "th/d", "meaning": "蒙托（神话人物）" },
+        { "char": "ฒ", "name": "ฒ ผู้เฒ่า", "pronunciation": "th", "meaning": "老人" },
+        { "char": "ณ", "name": "ณ เณร", "pronunciation": "n", "meaning": "小沙弥" },
+        { "char": "น", "name": "น หนู", "pronunciation": "n", "meaning": "老鼠" },
+        { "char": "ม", "name": "ม ม้า", "pronunciation": "m", "meaning": "马" },
+        { "char": "ย", "name": "ย ยักษ์", "pronunciation": "y", "meaning": "夜叉" },
+        { "char": "ร", "name": "ร เรือ", "pronunciation": "r", "meaning": "船" },
+        { "char": "ล", "name": "ล ลิง", "pronunciation": "l", "meaning": "猴子" },
+        { "char": "ว", "name": "ว แหวน", "pronunciation": "w", "meaning": "戒指" },
+        { "char": "ท", "name": "ท ทหาร", "pronunciation": "th", "meaning": "军人" },
+        { "char": "ธ", "name": "ธ ธง", "pronunciation": "th", "meaning": "旗帜" },
+        { "char": "ພ", "name": "ພ ພ", "pronunciation": "ph", "meaning": "(老挝对应)" },
+        { "char": "ฟ", "name": "ฟ ฟัน", "pronunciation": "f", "meaning": "牙齿" },
+        { "char": "ฮ", "name": "ฮ ฮูก", "pronunciation": "h", "meaning": "猫头鹰" }
+      ]
+    }
+  },
+  "specialRules": {
+    "hoLeading": {
+      "description": "ห 引导规则：ห + 低辅音 → 按高辅音规则处理",
+      "examples": [
+        { "combo": "ห + น", "word": "ຫນ", "result": "高音类" },
+        { "combo": "ห + ม", "word": "หม", "result": "高音类" },
+        { "combo": "ห + ย", "word": "หย", "result": "高音类" },
+        { "combo": "ห + ร", "word": "หร", "result": "高音类" },
+        { "combo": "ห + ล", "word": "หล", "result": "高音类" },
+        { "combo": "ห + ว", "word": "หว", "result": "高音类" },
+        { "combo": "ห + น", "word": "หน", "result": "高音类" }
+      ]
+    },
+    "hoLeading_o": {
+      "description": "อ 引导：ห + อ → 特殊处理",
+      "examples": [
+        { "combo": "ห + อ + า", "word": "ห + อ + า", "result": "如 หอ = ห + อ(กลาง)" }
+      ]
+    }
+  }
+}
