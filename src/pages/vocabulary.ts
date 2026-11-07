@@ -75,7 +75,7 @@ function renderWordList(container: HTMLElement, words: Word[]): void {
     item.innerHTML = `
       <div style="display:flex; align-items:center; justify-content:space-between;">
         <div style="flex:1; min-width:0;">
-          <div style="font-family:var(--font-thai); font-size:1.3rem; font-weight:600;">${escapeHtml(word.thai)}</div>
+          <div style="font-family:var(--font-thai); font-size:1.3rem; font-weight:500;">${escapeHtml(word.thai)}</div>
           <div style="font-size:0.85rem; color:var(--text-secondary); margin-top:2px;">${escapeHtml(word.meaning)}</div>
           ${word.toneMark ? `<span class="tag tag-tone" style="margin-top:4px;">${escapeHtml(word.toneMark)}</span>` : ''}
           ${word.pos ? `<span class="tag" style="margin-top:4px; margin-left:4px;">${escapeHtml(word.pos)}</span>` : ''}

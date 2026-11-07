@@ -140,7 +140,7 @@ function startReviewSession(container: HTMLElement, items: ReviewItem[], mode: R
       card.innerHTML = `
         <div class="flashcard-inner">
           <div class="flashcard-front">
-            <div class="thai-text-lg">${escapeHtml(item.word.thai)}</div>
+            <div class="thai-text-lg" style="font-weight:500;">${escapeHtml(item.word.thai)}</div>
             ${item.word.toneMark ? `<div class="tag tag-tone" style="margin-top:8px;">${escapeHtml(item.word.toneMark)}</div>` : ''}
             <div class="flashcard-hint">点击翻转查看释义</div>
           </div>
@@ -161,7 +161,7 @@ function startReviewSession(container: HTMLElement, items: ReviewItem[], mode: R
             <div class="flashcard-hint">点击翻转查看泰文拼写</div>
           </div>
           <div class="flashcard-back">
-            <div class="thai-text-lg">${escapeHtml(item.word.thai)}</div>
+            <div class="thai-text-lg" style="font-weight:500;">${escapeHtml(item.word.thai)}</div>
             ${item.word.toneMark ? `<div class="tag tag-tone" style="margin-top:8px;">${escapeHtml(item.word.toneMark)}</div>` : ''}
             ${item.word.example ? `<div style="font-size:0.85rem; color:var(--text-muted); font-family:var(--font-thai); margin-top:8px;">${escapeHtml(item.word.example)}</div>` : ''}
           </div>
