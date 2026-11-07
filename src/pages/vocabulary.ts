@@ -61,7 +61,7 @@ function renderWordList(container: HTMLElement, words: Word[]): void {
   if (words.length === 0) {
     container.innerHTML = `
       <div class="empty-state">
-        <span class="emoji">🐕</span>
+        <span class="emoji">🍊</span>
         <p>还没有单词</p>
         <p style="font-size:0.8rem; margin-top:8px;">点击"添加单词"或"批量导入"开始学习吧</p>
       </div>

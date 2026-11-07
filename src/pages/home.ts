@@ -25,7 +25,7 @@ export async function renderHomePage(container: HTMLElement): Promise<void> {
   content.innerHTML = `
     <div class="section animate-fade-in">
       <div class="card" style="text-align:center; background: linear-gradient(135deg, var(--orange-100), var(--orange-200)); border-color: var(--orange-300);">
-        <div style="font-size:2rem; margin-bottom:8px;">🐕</div>
+        <div style="font-size:2rem; margin-bottom:8px;">🍊</div>
         <div style="font-size:0.85rem; color:var(--text-secondary);">连续打卡</div>
         <div style="font-size:2.5rem; font-weight:700; color:var(--orange-500);">${summary.streakDays}</div>
         <div style="font-size:0.85rem; color:var(--text-secondary);">天</div>
@@ -58,7 +58,7 @@ export async function renderHomePage(container: HTMLElement): Promise<void> {
       <div class="section-title"><span class="emoji">⚡</span> 快速入口</div>
       <div class="quick-grid">
         <div class="quick-item" data-route="/tone-training">
-          <span class="icon">🎵</span>
+          <span class="icon">🍊</span>
           <span class="label">声调训练</span>
         </div>
         <div class="quick-item" data-route="/consonants">

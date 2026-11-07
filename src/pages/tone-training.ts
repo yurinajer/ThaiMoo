@@ -8,7 +8,7 @@ export async function renderToneTrainingPage(container: HTMLElement): Promise<vo
   const header = createElement('div', { className: 'page-header' });
   header.innerHTML = `
     <button class="back-btn" onclick="window.location.hash='/more'">←</button>
-    <h1>🎵 声调规则训练</h1>
+    <h1>🍊 声调规则训练</h1>
   `;
   container.appendChild(header);
 
@@ -21,7 +21,7 @@ export async function renderToneTrainingPage(container: HTMLElement): Promise<vo
   if (words.length === 0) {
     content.innerHTML = `
       <div class="empty-state" style="margin-top:40px;">
-        <span class="emoji">🐕</span>
+        <span class="emoji">🍊</span>
         <p>词库为空，请先添加单词</p>
         <a href="#/vocabulary" class="btn btn-primary" style="margin-top:16px;">去添加</a>
       </div>
@@ -125,7 +125,7 @@ function renderResult(container: HTMLElement, correct: number, total: number): v
 
   content.innerHTML = `
     <div class="card" style="text-align:center; margin-top:40px;">
-      <div style="font-size:3rem; margin-bottom:16px;">🎵</div>
+      <div style="font-size:3rem; margin-bottom:16px;">🍊</div>
       <div style="font-size:1.1rem; font-weight:600;">声调训练完成！</div>
       <div style="font-size:2.5rem; font-weight:700; color:var(--orange-500); margin:16px 0;">${percent}%</div>
       <div style="color:var(--text-secondary);">答对 ${correct} / ${total}</div>

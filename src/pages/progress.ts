@@ -92,7 +92,7 @@ function getAchievements(words: number, reviews: number, streak: number, stubbor
     { icon: '🏅', name: '月度学霸', desc: '连续打卡30天', done: streak >= 30 },
     { icon: '✏️', name: '初次复习', desc: '完成第一次复习', done: reviews >= 1 },
     { icon: '🎯', name: '百次复习', desc: '累计复习100次', done: reviews >= 100 },
-    { icon: '🐕', name: '柯基加油', desc: '克服第一个顽固词', done: stubborn === 0 && reviews > 0 },
+    { icon: '🍊', name: '橘子加油', desc: '克服第一个顽固词', done: stubborn === 0 && reviews > 0 },
   ];
 
   return achievements.map(a => `

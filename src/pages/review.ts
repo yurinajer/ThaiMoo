@@ -25,7 +25,7 @@ export async function renderReviewPage(container: HTMLElement): Promise<void> {
   if (dueCount === 0 && newCount === 0) {
     content.innerHTML = `
       <div class="empty-state" style="margin-top:60px;">
-        <span class="emoji">🐕</span>
+        <span class="emoji">🍊</span>
         <p>今天没有需要复习的词</p>
         <p style="font-size:0.85rem; color:var(--text-muted); margin-top:8px;">去词库添加新单词吧</p>
         <a href="#/vocabulary" class="btn btn-primary" style="margin-top:16px;">去添加</a>

@@ -10,7 +10,7 @@ export function renderMorePage(container: HTMLElement): void {
   container.appendChild(content);
 
   const modules = [
-    { icon: '🎵', name: '声调规则训练', desc: '看泰文选声调，展示推导步骤', route: '/tone-training' },
+    { icon: '🍊', name: '声调规则训练', desc: '看泰文选声调，展示推导步骤', route: '/tone-training' },
     { icon: '🔤', name: '辅音分类', desc: '高/中/低辅音卡片与测验', route: '/consonants' },
     { icon: '📝', name: '拼写读音对照', desc: '不发音字母、尾辅音转换', route: '/spelling' },
     { icon: '👂', name: '长短音辨析', desc: '形近词对比练习', route: '/minimal-pairs' },

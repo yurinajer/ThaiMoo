@@ -34,7 +34,7 @@ export async function renderColloquialPage(container: HTMLElement): Promise<void
     if (notes.length === 0) {
       notesList.innerHTML = `
         <div class="empty-state">
-          <span class="emoji">🐕</span>
+          <span class="emoji">🍊</span>
           <p>还没有笔记</p>
           <p style="font-size:0.85rem; color:var(--text-muted); margin-top:8px;">点击"添加笔记"记录口语吞音现象</p>
         </div>

@@ -32,7 +32,7 @@ export async function renderMinimalPairsPage(container: HTMLElement): Promise<vo
     if (groups.length === 0) {
       groupsList.innerHTML = `
         <div class="empty-state">
-          <span class="emoji">🐕</span>
+          <span class="emoji">🍊</span>
           <p>还没有对比组</p>
           <p style="font-size:0.85rem; color:var(--text-muted); margin-top:8px;">点击"新建对比组"添加形近词进行辨析练习</p>
         </div>

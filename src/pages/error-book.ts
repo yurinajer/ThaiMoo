@@ -29,7 +29,7 @@ export async function renderErrorBookPage(container: HTMLElement): Promise<void>
     if (errors.length === 0) {
       errorContent.innerHTML = `
         <div class="empty-state">
-          <span class="emoji">🐕</span>
+          <span class="emoji">🍊</span>
           <p>今天还没有错词</p>
           <p style="font-size:0.85rem; color:var(--text-muted); margin-top:8px;">继续保持！</p>
         </div>

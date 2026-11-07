@@ -54,7 +54,7 @@ async function navigate(): Promise<void> {
       </div>
       <div class="page-content">
         <div class="empty-state">
-          <span class="emoji">🐕</span>
+          <span class="emoji">🍊</span>
           <p>找不到该页面</p>
           <a href="#/" class="btn btn-primary" style="margin-top:16px">返回首页</a>
         </div>

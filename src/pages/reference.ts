@@ -70,7 +70,7 @@ export async function renderReferencePage(container: HTMLElement): Promise<void>
     if (words.length === 0) {
       refList.innerHTML = `
         <div class="empty-state">
-          <span class="emoji">🐕</span>
+          <span class="emoji">🍊</span>
           <p>没有找到匹配的单词</p>
         </div>
       `;
