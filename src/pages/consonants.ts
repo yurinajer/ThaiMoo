@@ -6,7 +6,7 @@ export async function renderConsonantsPage(container: HTMLElement): Promise<void
   const header = createElement('div', { className: 'page-header' });
   header.innerHTML = `
     <button class="back-btn" onclick="window.location.hash='/more'">←</button>
-    <h1>🔤 辅音分类</h1>
+    <h1>辅音分类</h1>
   `;
   container.appendChild(header);
 

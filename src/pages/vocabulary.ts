@@ -6,7 +6,7 @@ import type { Word } from '../db/index';
 
 export async function renderVocabularyPage(container: HTMLElement): Promise<void> {
   const header = createElement('div', { className: 'page-header' });
-  header.innerHTML = `<h1>📚 词库管理</h1>`;
+  header.innerHTML = `<h1>词库管理</h1>`;
   container.appendChild(header);
 
   const content = createElement('div', { className: 'page-content' });
@@ -245,8 +245,8 @@ function showImportModal(onSaved: () => void): void {
     const result = await importWords(words);
 
     for (let i = 0; i < result.imported; i++) {
-      const word = await (await import('../db/vocabulary')).getAllWords();
-      const latest = word[0];
+      const allWords = await getAllWords();
+      const latest = allWords[0];
       if (latest?.id) await initNewWordReview(latest.id);
     }
 

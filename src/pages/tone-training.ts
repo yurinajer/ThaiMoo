@@ -8,7 +8,7 @@ export async function renderToneTrainingPage(container: HTMLElement): Promise<vo
   const header = createElement('div', { className: 'page-header' });
   header.innerHTML = `
     <button class="back-btn" onclick="window.location.hash='/more'">←</button>
-    <h1>🍊 声调规则训练</h1>
+    <h1>声调规则训练</h1>
   `;
   container.appendChild(header);
 

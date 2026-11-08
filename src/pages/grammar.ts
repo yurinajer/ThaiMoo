@@ -4,10 +4,7 @@ import { showSuccess, showError } from '../components/toast';
 
 export async function renderGrammarPage(container: HTMLElement): Promise<void> {
   const header = createElement('div', { className: 'page-header' });
-  header.innerHTML = `
-    <button class="back-btn" onclick="window.location.hash='/more'">←</button>
-    <h1>📖 语法句型</h1>
-  `;
+  header.innerHTML = `<h1>语法句型</h1>`;
   container.appendChild(header);
 
   const content = createElement('div', { className: 'page-content' });

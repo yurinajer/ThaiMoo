@@ -5,7 +5,10 @@ import { getStubbornCount } from '../db/errors';
 
 export async function renderProgressPage(container: HTMLElement): Promise<void> {
   const header = createElement('div', { className: 'page-header' });
-  header.innerHTML = `<h1>📊 学习进度</h1>`;
+  header.innerHTML = `
+    <button class="back-btn" onclick="window.location.hash='/more'">←</button>
+    <h1>学习进度</h1>
+  `;
   container.appendChild(header);
 
   const content = createElement('div', { className: 'page-content' });

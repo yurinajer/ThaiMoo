@@ -14,7 +14,7 @@ interface ReviewItem {
 
 export async function renderReviewPage(container: HTMLElement): Promise<void> {
   const header = createElement('div', { className: 'page-header' });
-  header.innerHTML = `<h1>✏️ 间隔复习</h1>`;
+  header.innerHTML = `<h1>间隔复习</h1>`;
   container.appendChild(header);
 
   const content = createElement('div', { className: 'page-content' });

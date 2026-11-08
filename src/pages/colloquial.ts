@@ -6,7 +6,7 @@ export async function renderColloquialPage(container: HTMLElement): Promise<void
   const header = createElement('div', { className: 'page-header' });
   header.innerHTML = `
     <button class="back-btn" onclick="window.location.hash='/more'">←</button>
-    <h1>💬 口语吞音笔记</h1>
+    <h1>口语吞音笔记</h1>
   `;
   container.appendChild(header);
 

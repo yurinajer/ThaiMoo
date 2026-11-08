@@ -1,5 +1,5 @@
 import { db, type ReviewState, todayStr, getOrCreateDailyStat } from './index';
-import { createEmptyCard, type Card, type Grade, State } from 'ts-fsrs';
+import { createEmptyCard, FSRS, type Card, type Grade, State } from 'ts-fsrs';
 
 export async function getReviewState(wordId: number): Promise<ReviewState | undefined> {
   return await db.reviewStates.get(wordId);
@@ -67,7 +67,6 @@ function cardToReviewState(wordId: number, card: Card): ReviewState {
 }
 
 export async function gradeReview(wordId: number, grade: Grade): Promise<{ card: Card; nextDue: Date }> {
-  const { FSRS } = await import('ts-fsrs');
   const fsrs = new FSRS({});
   const state = await getReviewState(wordId);
 

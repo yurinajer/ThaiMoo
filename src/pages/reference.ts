@@ -31,7 +31,7 @@ export async function renderReferencePage(container: HTMLElement): Promise<void>
   const header = createElement('div', { className: 'page-header' });
   header.innerHTML = `
     <button class="back-btn" onclick="window.location.hash='/more'">←</button>
-    <h1>📚 参考词库</h1>
+    <h1>参考词库</h1>
   `;
   container.appendChild(header);
 

@@ -7,7 +7,7 @@ export async function renderErrorBookPage(container: HTMLElement): Promise<void>
   const header = createElement('div', { className: 'page-header' });
   header.innerHTML = `
     <button class="back-btn" onclick="window.location.hash='/'">←</button>
-    <h1>📕 错词本</h1>
+    <h1>错词本</h1>
   `;
   container.appendChild(header);
 
