@@ -5,7 +5,8 @@ export async function addErrorRecord(
   errorType: string,
   question: string,
   userAnswer: string,
-  correctAnswer: string
+  correctAnswer: string,
+  trackStubborn: boolean = true
 ): Promise<void> {
   const record: ErrorRecord = {
     wordId,
@@ -17,7 +18,9 @@ export async function addErrorRecord(
     date: todayStr(),
   };
   await db.errorRecords.add(record);
-  await updateStubbornWord(wordId);
+  if (trackStubborn && wordId > 0) {
+    await updateStubbornWord(wordId);
+  }
 }
 
 export async function getTodayErrors(): Promise<ErrorRecord[]> {

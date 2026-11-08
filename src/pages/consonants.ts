@@ -1,6 +1,7 @@
 import { createElement, escapeHtml, shuffleArray } from '../lib/utils';
 import { getAllConsonants } from '../lib/tone-engine';
 import { showSuccess, showError } from '../components/toast';
+import { addErrorRecord } from '../db/errors';
 
 export async function renderConsonantsPage(container: HTMLElement): Promise<void> {
   const header = createElement('div', { className: 'page-header' });
@@ -176,7 +177,7 @@ function startConsonantQuiz(content: HTMLElement, consonants: { mid: any[]; high
     `;
 
     content.querySelectorAll('.quiz-option').forEach(btn => {
-      btn.addEventListener('click', () => {
+      btn.addEventListener('click', async () => {
         const answer = btn.getAttribute('data-answer')!;
         const isCorrect = answer === q.class;
 
@@ -187,6 +188,13 @@ function startConsonantQuiz(content: HTMLElement, consonants: { mid: any[]; high
 
         if (!isCorrect) {
           btn.classList.add('wrong');
+          const classLabel: Record<string, string> = { mid: '中辅音', high: '高辅音', low: '低辅音' };
+          await addErrorRecord(
+            0, 'consonant', q.char,
+            classLabel[answer] || answer,
+            classLabel[q.class] || q.class,
+            false
+          );
         } else {
           correct++;
         }

@@ -77,24 +77,27 @@ export async function renderReviewPage(container: HTMLElement): Promise<void> {
 }
 
 async function buildReviewQueue(): Promise<ReviewItem[]> {
-  const items: ReviewItem[] = [];
+  const dueItems: { word: Word; nextReview: number }[] = [];
 
   const dueStates = await getDueReviewStates();
   for (const state of dueStates) {
     const word = await getWord(state.wordId);
-    if (word) items.push({ word, isNew: false });
+    if (word) dueItems.push({ word, nextReview: state.nextReview });
   }
 
+  dueItems.sort((a, b) => a.nextReview - b.nextReview);
+
+  const newItems: ReviewItem[] = [];
   const newIds = await getNewWordsWithoutReview(20);
   for (const id of newIds) {
     const word = await getWord(id);
     if (word) {
       await initNewWordReview(id);
-      items.push({ word, isNew: true });
+      newItems.push({ word, isNew: true });
     }
   }
 
-  return shuffleArray(items);
+  return [...dueItems.map(i => ({ word: i.word, isNew: false })), ...shuffleArray(newItems)];
 }
 
 function startReviewSession(container: HTMLElement, items: ReviewItem[], mode: ReviewMode): void {

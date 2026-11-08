@@ -1,5 +1,6 @@
 import { createElement, escapeHtml, shuffleArray } from '../lib/utils';
 import { showSuccess, showError } from '../components/toast';
+import { addErrorRecord } from '../db/errors';
 
 interface SpellingRule {
   written?: string;
@@ -193,7 +194,7 @@ function startSpellingQuiz(content: HTMLElement, data: SpellingData) {
 
       <div class="quiz-options" id="quiz-options">
         ${options.map((opt, i) => `
-          <button class="quiz-option" data-idx="${i}" data-correct="${opt.correct}">
+          <button class="quiz-option" data-idx="${i}" data-correct="${opt.correct}" data-label="${escapeHtml(opt.label)}">
             <span style="font-family:var(--font-thai); font-size:1.1rem;">/${escapeHtml(opt.label)}/</span>
           </button>
         `).join('')}
@@ -201,7 +202,7 @@ function startSpellingQuiz(content: HTMLElement, data: SpellingData) {
     `;
 
     content.querySelectorAll('.quiz-option').forEach(btn => {
-      btn.addEventListener('click', () => {
+      btn.addEventListener('click', async () => {
         const isCorrect = btn.getAttribute('data-correct') === 'true';
 
         content.querySelectorAll('.quiz-option').forEach(b => {
@@ -211,6 +212,8 @@ function startSpellingQuiz(content: HTMLElement, data: SpellingData) {
 
         if (!isCorrect) {
           btn.classList.add('wrong');
+          const userAnswer = btn.getAttribute('data-label') || '';
+          await addErrorRecord(0, 'spelling', q.word, userAnswer, q.pronounced, false);
         } else {
           correct++;
         }
