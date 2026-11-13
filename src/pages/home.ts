@@ -5,6 +5,7 @@ import { getTodayErrorCount, getStubbornWordIds, getTodayErrors } from '../db/er
 import { getWord, type Word } from '../db/vocabulary';
 import { recordDailyActivity } from '../db/progress';
 import { navigateTo } from '../router';
+import { toneZh } from '../lib/tones';
 
 function getTodayDateLabel(): string {
   const d = new Date();
@@ -94,7 +95,7 @@ export async function renderHomePage(container: HTMLElement): Promise<void> {
               <span style="font-family:var(--font-thai); font-size:1.1rem; font-weight:600;">${escapeHtml(w.thai)}</span>
               <span style="font-size:0.85rem; color:var(--text-secondary); margin-left:8px;">${escapeHtml(w.meaning)}</span>
             </div>
-            ${w.toneMark ? `<span class="tag tag-tone">${escapeHtml(w.toneMark)}</span>` : ''}
+            ${toneZh(w.toneMark) ? `<span class="tag tag-tone">${escapeHtml(toneZh(w.toneMark))}</span>` : ''}
           </div>
         `).join('')}
       </div>

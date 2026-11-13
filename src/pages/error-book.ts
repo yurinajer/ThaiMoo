@@ -1,7 +1,48 @@
 import { createElement, escapeHtml, shuffleArray } from '../lib/utils';
-import { getTodayErrors, getStubbornWordIds, markStubbornMastered } from '../db/errors';
+import { getTodayErrors, getStubbornWordIds, markStubbornMastered, getWordErrors } from '../db/errors';
 import { getWord, getAllWords, type Word } from '../db/vocabulary';
 import { showSuccess } from '../components/toast';
+import { showWordDetail } from '../components/word-detail';
+import { showWordFormModal } from './vocabulary';
+import { getStubbornThreshold } from '../db/index';
+import { toneZh } from '../lib/tones';
+import type { ErrorRecord } from '../db/index';
+
+const ERROR_TYPE_LABELS: Record<string, string> = {
+  tone: '声调',
+  spelling: '拼写读音',
+  consonant: '辅音分类',
+  'minimal-pair': '易混淆词',
+  review: '复习',
+};
+
+// Legacy tone records stored raw ids ('mid') or old labels ('高升'); both are
+// unreadable in the list, so run them through the tone table before display.
+function prettyAnswer(errorType: string, raw: string): string {
+  if (errorType !== 'tone') return raw;
+  return toneZh(raw) || raw;
+}
+
+function buildErrorHistoryHtml(errors: ErrorRecord[]): string {
+  if (errors.length === 0) return '';
+  const items = errors.slice(0, 8).map(err => `
+    <div class="detail-extra-item">
+      <div>
+        <span class="tag tag-error">${escapeHtml(ERROR_TYPE_LABELS[err.errorType] || err.errorType)}</span>
+        <span style="margin-left:6px; color:var(--text-muted); font-size:0.75rem;">${escapeHtml(err.date)}</span>
+      </div>
+      <div style="margin-top:4px;">
+        作答 <span style="color:var(--red-400);">${escapeHtml(prettyAnswer(err.errorType, err.userAnswer))}</span>
+        → 正确 <span style="color:var(--green-600);">${escapeHtml(prettyAnswer(err.errorType, err.correctAnswer))}</span>
+      </div>
+    </div>
+  `).join('');
+
+  return `
+    <div class="detail-extra-title">错题记录（共 ${errors.length} 条${errors.length > 8 ? '，显示最近 8 条' : ''}）</div>
+    ${items}
+  `;
+}
 
 export async function renderErrorBookPage(container: HTMLElement): Promise<void> {
   const header = createElement('div', { className: 'page-header' });
@@ -53,27 +94,83 @@ export async function renderErrorBookPage(container: HTMLElement): Promise<void>
       'review': '复习',
     };
 
-    errorContent.innerHTML = errors.map(err => {
+    errorContent.innerHTML = errors.map((err, i) => {
       const word = err.wordId > 0 ? wordMap.get(err.wordId) : undefined;
-      const typeLabel = errorTypeLabels[err.errorType] || err.errorType;
+      const typeLabel = ERROR_TYPE_LABELS[err.errorType] || err.errorType;
       const displayTitle = word
         ? `<span style="font-family:var(--font-thai); font-size:1.2rem; font-weight:600;">${escapeHtml(word.thai)}</span>
            <span style="font-size:0.85rem; color:var(--text-secondary); margin-left:8px;">${escapeHtml(word.meaning)}</span>`
         : `<span style="font-family:var(--font-thai); font-size:1.2rem; font-weight:600;">${escapeHtml(err.question)}</span>`;
 
       return `
-        <div class="card" style="margin-bottom:8px; padding:12px 16px;">
+        <div class="card word-card" data-err-idx="${i}" style="margin-bottom:8px; padding:12px 16px;">
           <div style="display:flex; justify-content:space-between; align-items:start;">
             <div style="min-width:0; flex:1;">${displayTitle}</div>
             <span class="tag tag-error" style="flex-shrink:0; margin-left:8px;">${escapeHtml(typeLabel)}</span>
           </div>
           <div style="margin-top:8px; font-size:0.8rem; color:var(--text-muted);">
-            你的答案: <span style="color:var(--red-400);">${escapeHtml(err.userAnswer)}</span>
-            → 正确: <span style="color:var(--green-600);">${escapeHtml(err.correctAnswer)}</span>
+            你的答案: <span style="color:var(--red-400);">${escapeHtml(prettyAnswer(err.errorType, err.userAnswer))}</span>
+            → 正确: <span style="color:var(--green-600);">${escapeHtml(prettyAnswer(err.errorType, err.correctAnswer))}</span>
           </div>
+          <div style="margin-top:6px; font-size:0.75rem; color:var(--text-muted);">点击查看详情 ›</div>
         </div>
       `;
     }).join('');
+
+    errorContent.querySelectorAll<HTMLElement>('.word-card').forEach(card => {
+      card.addEventListener('click', async () => {
+        const err = errors[parseInt(card.getAttribute('data-err-idx')!)];
+        const history = err.wordId > 0 ? await getWordErrors(err.wordId) : [err];
+        const extra = buildErrorHistoryHtml(history);
+
+        if (err.wordId > 0) {
+          const word = await getWord(err.wordId);
+          if (word) {
+            showWordDetail(word, {
+              extraHtml: extra,
+              onEdit: w => showWordFormModal(w, () => loadTodayErrors()),
+            });
+            return;
+          }
+        }
+
+        showRuleErrorDetail(err, extra);
+      });
+    });
+  }
+
+  function showRuleErrorDetail(err: ErrorRecord, extra: string): void {
+    const overlay = createElement('div', { className: 'sheet-overlay' });
+    overlay.innerHTML = `
+      <div class="sheet" role="dialog" aria-modal="true" aria-label="知识点详情">
+        <div class="sheet-header">
+          <div class="sheet-handle"></div>
+          <h2>知识点详情</h2>
+          <button class="modal-close" aria-label="关闭">&times;</button>
+        </div>
+        <div class="sheet-body">
+          <div class="detail-head">
+            <div class="detail-head-main">
+              <div class="detail-thai">${escapeHtml(err.question)}</div>
+              <div class="detail-meaning">${escapeHtml(ERROR_TYPE_LABELS[err.errorType] || err.errorType)}</div>
+            </div>
+          </div>
+          <div class="detail-row">
+            <div class="detail-label">类型</div>
+            <div class="detail-value">非词库知识点，详情来自${escapeHtml(ERROR_TYPE_LABELS[err.errorType] || err.errorType)}测验本身</div>
+          </div>
+          <div class="detail-row">
+            <div class="detail-label">正确项</div>
+            <div class="detail-value"><span style="color:var(--green-600);">${escapeHtml(prettyAnswer(err.errorType, err.correctAnswer))}</span></div>
+          </div>
+          ${extra ? `<div class="detail-extra">${extra}</div>` : ''}
+        </div>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+    const close = () => { overlay.classList.add('closing'); setTimeout(() => overlay.remove(), 180); };
+    overlay.querySelector('.modal-close')!.addEventListener('click', close);
+    overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
   }
 
   async function loadStubbornWords() {
@@ -95,18 +192,21 @@ export async function renderErrorBookPage(container: HTMLElement): Promise<void>
       if (word) words.push(word);
     }
 
+    const threshold = await getStubbornThreshold();
+
     errorContent.innerHTML = `
       <div style="margin-bottom:12px; display:flex; justify-content:space-between; align-items:center;">
         <div style="font-size:0.85rem; color:var(--text-secondary);">
-          累计错误≥3次的单词，需要重点复习
+          累计错误≥${threshold}次的单词，需要重点复习
         </div>
         <button class="btn btn-primary btn-sm" id="btn-stubborn-practice">强化练习</button>
       </div>
       ${words.map(w => `
-        <div class="card" style="margin-bottom:8px; padding:12px 16px;">
-          <div style="display:flex; justify-content:space-between; align-items:center;">
-            <div>
+        <div class="card word-card" data-stub-born="${w.id}" style="margin-bottom:8px; padding:12px 16px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
+            <div style="min-width:0; flex:1;">
               <div style="font-family:var(--font-thai); font-size:1.2rem; font-weight:600;">${escapeHtml(w.thai)}</div>
+              ${(w.romanization ?? '').trim() ? `<div class="word-card-roman">${escapeHtml(w.romanization!.trim())}</div>` : ''}
               <div style="font-size:0.85rem; color:var(--text-secondary);">${escapeHtml(w.meaning)}</div>
             </div>
             <button class="btn btn-sm btn-success" data-master="${w.id}">已掌握</button>
@@ -116,11 +216,29 @@ export async function renderErrorBookPage(container: HTMLElement): Promise<void>
     `;
 
     errorContent.querySelectorAll('[data-master]').forEach(btn => {
-      btn.addEventListener('click', async () => {
+      btn.addEventListener('click', async (e) => {
+        e.stopPropagation();
         const id = parseInt(btn.getAttribute('data-master')!);
         await markStubbornMastered(id);
         showSuccess('已标记为掌握');
         loadStubbornWords();
+      });
+    });
+
+    errorContent.querySelectorAll<HTMLElement>('[data-stub-born]').forEach(card => {
+      card.addEventListener('click', async () => {
+        const id = parseInt(card.getAttribute('data-stub-born')!);
+        const word = words.find(w => w.id === id);
+        if (!word) return;
+        const history = await getWordErrors(id);
+        showWordDetail(word, {
+          extraHtml: `
+            <div class="detail-extra-title">顽固词信息</div>
+            <div class="detail-extra-item">累计错误 ${history.length} 次，达到阈值 ${threshold} 次后被标记</div>
+            ${buildErrorHistoryHtml(history)}
+          `,
+          onEdit: w => showWordFormModal(w, () => loadStubbornWords()),
+        });
       });
     });
 
@@ -207,7 +325,7 @@ function startStubbornPractice(content: HTMLElement, stubbornWords: Word[]): voi
       <div class="card" style="text-align:center; padding:28px 16px; margin-bottom:20px;">
         <div style="font-size:0.85rem; color:var(--text-muted); margin-bottom:8px;">请选择正确的中文释义</div>
         <div style="font-family:var(--font-thai); font-size:2rem; font-weight:700;">${escapeHtml(word.thai)}</div>
-        ${word.toneMark ? `<div class="tag tag-tone" style="margin-top:8px;">${escapeHtml(word.toneMark)}</div>` : ''}
+        ${toneZh(word.toneMark) ? `<div class="tag tag-tone" style="margin-top:8px;">${escapeHtml(toneZh(word.toneMark))}</div>` : ''}
       </div>
       <div class="quiz-options" id="practice-options">
         ${options.map((opt, i) => `

@@ -1,3 +1,5 @@
+import { TONES, toneDef, normalizeToneId, type ToneDef, type ToneId } from './tones';
+
 interface ConsonantInfo {
   char: string;
   name: string;
@@ -107,20 +109,26 @@ export function hasLongVowel(word: string): boolean {
   return longVowels.some(v => word.includes(v));
 }
 
+// 塞音尾与 -ศ -ษ -ส（读作 /t/）构成死音节；-ญ -ณ -ฬ 读作 /n/，属活音节。
+const DEAD_FINALS = ['ก', 'ข', 'ฃ', 'ค', 'ฅ', 'ฆ', 'จ', 'ช', 'ซ', 'ฌ', 'ฎ', 'ฏ', 'ฐ', 'ฑ', 'ฒ',
+  'ด', 'ต', 'ถ', 'ท', 'ธ', 'บ', 'ป', 'ผ', 'ฝ', 'พ', 'ฟ', 'ภ', 'ศ', 'ษ', 'ส'];
+const SHORT_VOWEL_FINALS = ['ะ', 'ั', 'ิ', 'ึ', 'ุ'];
+
 export function isLiveSyllable(word: string): boolean {
-  const liveFinals = ['ม', 'น', 'ง', 'ย', 'ว', 'ล', 'ร'];
   const cleaned = word.replace(/[่้๊๋็์๎ๆ๏๚๛]/g, '');
   if (cleaned.length === 0) return false;
   const last = cleaned[cleaned.length - 1];
-  if (liveFinals.includes(last)) return true;
-  if (/[าีืูเแโใไะำ]/.test(cleaned) && !/[กขคฆดตทธบปพฟศษสฮ]/.test(cleaned.slice(-1))) return true;
-  return false;
+  if (DEAD_FINALS.includes(last)) return false;
+  // 短元音结尾且无尾辅音同样是死音节（จะ、คะ）
+  if (SHORT_VOWEL_FINALS.includes(last)) return false;
+  return true;
 }
 
 export interface ToneDerivation {
   steps: string[];
-  result: string;
+  result: ToneId;
   resultName: string;
+  resultThai: string;
 }
 
 export async function deriveTone(word: string): Promise<ToneDerivation | null> {
@@ -155,11 +163,14 @@ export async function deriveTone(word: string): Promise<ToneDerivation | null> {
   const rule = tData.rules[ruleKey];
   if (!rule) return null;
 
+  // tone-rules.json spells the unmarked condition as "none". Normalising that
+  // sentinel to null is what lets an unmarked word reach its own cases instead
+  // of failing every branch and returning null.
   let result: ToneCase | undefined;
 
   for (const c of rule.cases) {
-    if (c.toneMark && c.toneMark !== toneMark) continue;
-    if (!c.toneMark && toneMark) continue;
+    const caseMark = c.toneMark && c.toneMark !== 'none' ? c.toneMark : null;
+    if (caseMark !== toneMark) continue;
     if (c.vowelLength === 'long' && !longVowel) continue;
     if (c.vowelLength === 'short' && longVowel) continue;
     if (c.finalType === 'live' && !live) continue;
@@ -168,18 +179,21 @@ export async function deriveTone(word: string): Promise<ToneDerivation | null> {
     break;
   }
 
-  if (!result) {
-    result = rule.cases.find(c => !c.toneMark && !c.vowelLength && !c.finalType);
-  }
-
   if (!result) return null;
 
-  steps.push(`⑤ 规则匹配 → ${result.resultName} ${tData.tones.find(t => t.id === result!.result)?.symbol || ''}`);
+  // Canonical id wins over whatever the JSON happens to spell, so the derivation
+  // can never drift from the tone table used by the quiz.
+  const toneId = normalizeToneId(result.result) ?? normalizeToneId(result.resultName);
+  if (!toneId) return null;
+  const def = toneDef(toneId);
+
+  steps.push(`⑤ 规则匹配 → ${def.zh} ${def.thai} (${def.symbol})`);
 
   return {
     steps,
-    result: result.result,
-    resultName: result.resultName,
+    result: toneId,
+    resultName: def.zh,
+    resultThai: def.thai,
   };
 }
 
@@ -196,7 +210,7 @@ export async function getAllConsonants(): Promise<{
   };
 }
 
-export async function getToneOptions(): Promise<{ id: string; name: string; symbol: string }[]> {
-  const data = await loadToneRuleData();
-  return data.tones.map(t => ({ id: t.id, name: t.name, symbol: t.symbol }));
+export async function getToneOptions(): Promise<ToneDef[]> {
+  await loadToneRuleData();
+  return TONES;
 }

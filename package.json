@@ -6,13 +6,15 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "node tests/f1-f2.test.mjs && node tests/stubborn-mastered.test.mjs && node tests/grammar-seed.test.mjs"
   },
   "dependencies": {
     "dexie": "^4.0.11",
     "ts-fsrs": "^4.5.2"
   },
   "devDependencies": {
+    "fake-indexeddb": "^6.2.8",
     "typescript": "^5.7.3",
     "vite": "^6.3.5",
     "vite-plugin-pwa": "^1.0.0",

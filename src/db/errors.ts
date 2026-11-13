@@ -47,7 +47,7 @@ async function updateStubbornWord(wordId: number): Promise<void> {
         wordId,
         errorCount: count,
         addedAt: Date.now(),
-        mastered: false,
+        mastered: 0,
       };
       await db.stubbornWords.add(stubborn);
     } else {
@@ -66,7 +66,7 @@ export async function getStubbornWordIds(): Promise<number[]> {
 }
 
 export async function markStubbornMastered(wordId: number): Promise<void> {
-  await db.stubbornWords.update(wordId, { mastered: true });
+  await db.stubbornWords.update(wordId, { mastered: 1 });
 }
 
 export async function getStubbornCount(): Promise<number> {

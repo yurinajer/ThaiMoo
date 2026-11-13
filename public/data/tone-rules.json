@@ -1,11 +1,11 @@
 {
   "description": "泰语声调规则表 - 数据来源：标准泰语教材",
   "tones": [
-    { "id": "mid", "name": "中平", "symbol": "—", "mark": "ไม่มี" },
-    { "id": "low", "name": "低平", "symbol": "˨˩", "mark": "เอก" },
-    { "id": "falling", "name": "降调", "symbol": "˥˩", "mark": "โท" },
-    { "id": "high", "name": "高升", "symbol": "˦˥", "mark": "ตรี" },
-    { "id": "rising", "name": "低升", "symbol": "˨˩˦", "mark": "จัตวา" }
+    { "id": "mid", "num": 1, "name": "中平调", "thai": "สามัญ", "en": "Mid", "symbol": "˧", "mark": "ไม่มี" },
+    { "id": "low", "num": 2, "name": "低调", "thai": "เอก", "en": "Low", "symbol": "˨˩", "mark": "เอก" },
+    { "id": "falling", "num": 3, "name": "降调", "thai": "โท", "en": "Falling", "symbol": "˥˩", "mark": "โท" },
+    { "id": "high", "num": 4, "name": "高调", "thai": "ตรี", "en": "High", "symbol": "˦˥", "mark": "ตรี" },
+    { "id": "rising", "num": 5, "name": "升调", "thai": "จัตวา", "en": "Rising", "symbol": "˩˩˦", "mark": "จัตวา" }
   ],
   "toneMarks": [
     { "char": "่", "name": "ไม้เอก (mai ek)", "position": "above" },
@@ -24,21 +24,21 @@
           "finalType": "live",
           "toneMark": "none",
           "result": "mid",
-          "resultName": "中平"
+          "resultName": "中平调"
         },
         {
           "condition": "无声调符号 + 死音节",
           "vowelLength": "any",
           "finalType": "dead",
           "toneMark": "none",
-          "result": "mid",
-          "resultName": "中平"
+          "result": "low",
+          "resultName": "低调"
         },
         {
           "condition": "ไม้เอก (่)",
           "toneMark": "่",
           "result": "low",
-          "resultName": "低平"
+          "resultName": "低调"
         },
         {
           "condition": "ไม้โท (้)",
@@ -50,13 +50,13 @@
           "condition": "ไม้ตรี (๊)",
           "toneMark": "๊",
           "result": "high",
-          "resultName": "高升"
+          "resultName": "高调"
         },
         {
           "condition": "ไม้จัตวา (๋)",
           "toneMark": "๋",
           "result": "rising",
-          "resultName": "低升"
+          "resultName": "升调"
         }
       ]
     },
@@ -65,16 +65,34 @@
       "consonantClass": "high",
       "cases": [
         {
-          "condition": "无声调符号",
+          "condition": "无声调符号 + 活音节",
+          "vowelLength": "any",
+          "finalType": "live",
           "toneMark": "none",
           "result": "rising",
-          "resultName": "低升"
+          "resultName": "升调"
+        },
+        {
+          "condition": "无声调符号 + 死音节 + 短元音",
+          "vowelLength": "short",
+          "finalType": "dead",
+          "toneMark": "none",
+          "result": "low",
+          "resultName": "低调"
+        },
+        {
+          "condition": "无声调符号 + 死音节 + 长元音",
+          "vowelLength": "long",
+          "finalType": "dead",
+          "toneMark": "none",
+          "result": "falling",
+          "resultName": "降调"
         },
         {
           "condition": "ไม้เอก (่)",
           "toneMark": "่",
           "result": "low",
-          "resultName": "低平"
+          "resultName": "低调"
         },
         {
           "condition": "ไม้โท (้)",
@@ -86,13 +104,13 @@
           "condition": "ไม้ตรี (๊)",
           "toneMark": "๊",
           "result": "high",
-          "resultName": "高升"
+          "resultName": "高调"
         },
         {
           "condition": "ไม้จัตวา (๋)",
           "toneMark": "๋",
           "result": "rising",
-          "resultName": "低升"
+          "resultName": "升调"
         }
       ]
     },
@@ -106,7 +124,7 @@
           "finalType": "live",
           "toneMark": "none",
           "result": "mid",
-          "resultName": "中平"
+          "resultName": "中平调"
         },
         {
           "condition": "无声调符号 + 短元音 + 活音节",
@@ -114,14 +132,23 @@
           "finalType": "live",
           "toneMark": "none",
           "result": "high",
-          "resultName": "高升"
+          "resultName": "高调"
         },
         {
-          "condition": "无声调符号 + 死音节",
+          "condition": "无声调符号 + 死音节 + 短元音",
+          "vowelLength": "short",
           "finalType": "dead",
           "toneMark": "none",
-          "result": "mid",
-          "resultName": "中平"
+          "result": "high",
+          "resultName": "高调"
+        },
+        {
+          "condition": "无声调符号 + 死音节 + 长元音",
+          "vowelLength": "long",
+          "finalType": "dead",
+          "toneMark": "none",
+          "result": "falling",
+          "resultName": "降调"
         },
         {
           "condition": "ไม้เอก (่)",
@@ -133,19 +160,19 @@
           "condition": "ไม้โท (้)",
           "toneMark": "้",
           "result": "high",
-          "resultName": "高升"
+          "resultName": "高调"
         },
         {
           "condition": "ไม้ตรี (๊)",
           "toneMark": "๊",
           "result": "mid",
-          "resultName": "中平"
+          "resultName": "中平调"
         },
         {
           "condition": "ไม้จัตวา (๋)",
           "toneMark": "๋",
           "result": "low",
-          "resultName": "低平"
+          "resultName": "低调"
         }
       ]
     }

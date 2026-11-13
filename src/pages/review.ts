@@ -3,6 +3,7 @@ import { getDueReviewStates, getNewWordsWithoutReview, gradeReview, initNewWordR
 import { getWord, type Word } from '../db/vocabulary';
 import { addErrorRecord } from '../db/errors';
 import { showSuccess } from '../components/toast';
+import { toneZh } from '../lib/tones';
 import type { Grade } from 'ts-fsrs';
 
 type ReviewMode = 'thai-to-cn' | 'cn-to-thai';
@@ -144,13 +145,16 @@ function startReviewSession(container: HTMLElement, items: ReviewItem[], mode: R
         <div class="flashcard-inner">
           <div class="flashcard-front">
             <div class="thai-text-lg" style="font-weight:500;">${escapeHtml(item.word.thai)}</div>
-            ${item.word.toneMark ? `<div class="tag tag-tone" style="margin-top:8px;">${escapeHtml(item.word.toneMark)}</div>` : ''}
+            ${(item.word.romanization ?? '').trim() ? `<div class="card-roman">${escapeHtml(item.word.romanization!.trim())}</div>` : ''}
+            ${toneZh(item.word.toneMark) ? `<div class="tag tag-tone" style="margin-top:8px;">${escapeHtml(toneZh(item.word.toneMark))}</div>` : ''}
             <div class="flashcard-hint">点击翻转查看释义</div>
           </div>
           <div class="flashcard-back">
             <div style="font-size:1.3rem; font-weight:600; margin-bottom:8px;">${escapeHtml(item.word.meaning)}</div>
             ${item.word.pos ? `<div style="font-size:0.85rem; color:var(--text-secondary); margin-bottom:4px;">${escapeHtml(item.word.pos)}</div>` : ''}
             ${item.word.example ? `<div style="font-size:0.85rem; color:var(--text-muted); font-family:var(--font-thai); margin-top:8px;">${escapeHtml(item.word.example)}</div>` : ''}
+            ${(item.word.exampleRoman ?? '').trim() ? `<div style="font-size:0.8rem; color:var(--orange-700); margin-top:2px;">${escapeHtml(item.word.exampleRoman!.trim())}</div>` : ''}
+            ${(item.word.exampleMeaning ?? '').trim() ? `<div style="font-size:0.8rem; color:var(--text-muted); margin-top:2px;">${escapeHtml(item.word.exampleMeaning!.trim())}</div>` : ''}
             ${item.word.note ? `<div style="font-size:0.8rem; color:var(--text-muted); margin-top:8px;">📝 ${escapeHtml(item.word.note)}</div>` : ''}
           </div>
         </div>
@@ -165,7 +169,8 @@ function startReviewSession(container: HTMLElement, items: ReviewItem[], mode: R
           </div>
           <div class="flashcard-back">
             <div class="thai-text-lg" style="font-weight:500;">${escapeHtml(item.word.thai)}</div>
-            ${item.word.toneMark ? `<div class="tag tag-tone" style="margin-top:8px;">${escapeHtml(item.word.toneMark)}</div>` : ''}
+            ${(item.word.romanization ?? '').trim() ? `<div class="card-roman">${escapeHtml(item.word.romanization!.trim())}</div>` : ''}
+            ${toneZh(item.word.toneMark) ? `<div class="tag tag-tone" style="margin-top:8px;">${escapeHtml(toneZh(item.word.toneMark))}</div>` : ''}
             ${item.word.example ? `<div style="font-size:0.85rem; color:var(--text-muted); font-family:var(--font-thai); margin-top:8px;">${escapeHtml(item.word.example)}</div>` : ''}
           </div>
         </div>

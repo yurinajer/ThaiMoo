@@ -54,10 +54,13 @@
         { "char": "ร", "name": "ร เรือ", "pronunciation": "r", "meaning": "船" },
         { "char": "ล", "name": "ล ลิง", "pronunciation": "l", "meaning": "猴子" },
         { "char": "ว", "name": "ว แหวน", "pronunciation": "w", "meaning": "戒指" },
+        { "char": "ฬ", "name": "ฬ จุฬา", "pronunciation": "n", "meaning": "风筝" },
         { "char": "ท", "name": "ท ทหาร", "pronunciation": "th", "meaning": "军人" },
         { "char": "ธ", "name": "ธ ธง", "pronunciation": "th", "meaning": "旗帜" },
+        { "char": "พ", "name": "พ พาน", "pronunciation": "ph", "meaning": "托盘" },
         { "char": "ພ", "name": "ພ ພ", "pronunciation": "ph", "meaning": "(老挝对应)" },
         { "char": "ฟ", "name": "ฟ ฟัน", "pronunciation": "f", "meaning": "牙齿" },
+        { "char": "ภ", "name": "ภ สำเภา", "pronunciation": "ph", "meaning": "帆船" },
         { "char": "ฮ", "name": "ฮ ฮูก", "pronunciation": "h", "meaning": "猫头鹰" }
       ]
     }

@@ -9,6 +9,9 @@ export interface Word {
   example: string;
   note: string;
   tags: string[];
+  romanization?: string;
+  exampleRoman?: string;
+  exampleMeaning?: string;
   groupId?: number;
   createdAt: number;
   updatedAt: number;
@@ -40,7 +43,9 @@ export interface StubbornWord {
   wordId: number;
   errorCount: number;
   addedAt: number;
-  mastered: boolean;
+  // 0 = 未掌握，1 = 已掌握。IndexedDB 不接受布尔值作为索引键，布尔记录会消失在
+  // mastered 索引之外，索引查询永远命中不到。
+  mastered: 0 | 1;
 }
 
 export interface MinimalPairGroup {
@@ -50,13 +55,24 @@ export interface MinimalPairGroup {
   createdAt: number;
 }
 
+export interface GrammarExample {
+  thai: string;
+  meaning: string;
+  blank?: string;
+  roman?: string;
+}
+
 export interface GrammarPoint {
   id?: number;
   title: string;
   content: string;
   patterns: string[];
-  examples: { thai: string; meaning: string; blank?: string }[];
+  examples: GrammarExample[];
   order: number;
+  note?: string;
+  isUserCreated?: boolean;
+  createdAt?: number;
+  updatedAt?: number;
 }
 
 export interface ColloquialNote {
@@ -100,8 +116,10 @@ export class ThaiLearnDB extends Dexie {
   settings!: Table<Setting>;
   referenceWords!: Table<ReferenceWord>;
 
-  constructor() {
-    super('ThaiLearnDB');
+  constructor(name = 'ThaiLearnDB') {
+    super(name);
+    // Only indexed fields belong here; extra record fields persist without a
+    // version bump, which keeps existing FSRS / error / streak data untouched.
     this.version(1).stores({
       words: '++id, thai, createdAt, updatedAt, groupId, *tags',
       reviewStates: 'wordId, nextReview, state',
@@ -114,6 +132,16 @@ export class ThaiLearnDB extends Dexie {
       settings: 'key',
       referenceWords: '++id, thai, meaning',
     });
+    // v1 wrote mastered as a boolean, which is not a valid IndexedDB key, so those
+    // rows never entered the mastered index. Rewrite the values only: the key stays
+    // wordId and every other field is carried over untouched.
+    this.version(2).stores({
+      stubbornWords: 'wordId, errorCount, mastered',
+    }).upgrade(tx => tx.table('stubbornWords').toCollection().modify(row => {
+      // 严格归一化：只承认 0 和 1，其余值（boolean、缺失、意外的数字）一律重算，
+      // 否则 mastered=2 这类脏数据会绕过 0|1 类型约束继续留在索引里。
+      if (row.mastered !== 0 && row.mastered !== 1) row.mastered = row.mastered === true ? 1 : 0;
+    }));
   }
 }
 
@@ -131,6 +159,12 @@ export async function setSetting(key: string, value: string): Promise<void> {
 export async function getStubbornThreshold(): Promise<number> {
   const val = await getSetting('stubbornThreshold', '3');
   return parseInt(val, 10) || 3;
+}
+
+// Backups exported before version 2 hold mastered as a boolean; restoring them
+// must not put that value back into the indexed field.
+export function normalizeStubbornMastered(value: unknown): 0 | 1 {
+  return value === 1 || value === true ? 1 : 0;
 }
 
 export function todayStr(): string {

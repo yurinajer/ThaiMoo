@@ -1,12 +1,16 @@
 import { createElement, escapeHtml } from '../lib/utils';
 import { navigateTo } from '../router';
 import { getProgressSummary } from '../db/progress';
-import { getWordCount, exportWordsToCSV, downloadCSV, parseCSV, importWords, getAllWords } from '../db/vocabulary';
+import { getWordCount, exportWordsToCSV, downloadCSV, getAllWords } from '../db/vocabulary';
+import { showImportModal } from './vocabulary';
 import { getStubbornCount } from '../db/errors';
-import { getSetting, setSetting, db } from '../db/index';
+import { getSetting, setSetting, db, normalizeStubbornMastered } from '../db/index';
 import { showSuccess, showError } from '../components/toast';
 
 export async function renderMorePage(container: HTMLElement): Promise<void> {
+  // Re-run after a CSV import to refresh the counters.
+  container.innerHTML = '';
+
   const header = createElement('div', { className: 'page-header' });
   header.innerHTML = `<h1>我的</h1>`;
   container.appendChild(header);
@@ -123,7 +127,7 @@ export async function renderMorePage(container: HTMLElement): Promise<void> {
           <span style="font-size:1.2rem;">⬆️</span>
           <div class="list-item-content">
             <div class="list-item-title">导入词库</div>
-            <div class="list-item-subtitle">从 CSV 文件恢复</div>
+            <div class="list-item-subtitle">粘贴 CSV 批量导入，自动跳过重复</div>
           </div>
         </div>
         <div class="list-item" id="btn-export-all" style="cursor:pointer;">
@@ -187,7 +191,7 @@ export async function renderMorePage(container: HTMLElement): Promise<void> {
   });
 
   content.querySelector('#btn-import')!.addEventListener('click', () => {
-    showImportModal();
+    showImportModal(() => renderMorePage(container));
   });
 
   content.querySelector('#btn-export-all')!.addEventListener('click', async () => {
@@ -245,7 +249,7 @@ export async function renderMorePage(container: HTMLElement): Promise<void> {
           if (data.words.length) await db.words.bulkAdd(data.words);
           if (data.reviewStates?.length) await db.reviewStates.bulkAdd(data.reviewStates);
           if (data.errorRecords?.length) await db.errorRecords.bulkAdd(data.errorRecords);
-          if (data.stubbornWords?.length) await db.stubbornWords.bulkAdd(data.stubbornWords);
+          if (data.stubbornWords?.length) await db.stubbornWords.bulkAdd(data.stubbornWords.map((s: Record<string, unknown>) => ({ ...s, mastered: normalizeStubbornMastered(s.mastered) })));
           if (data.dailyStats?.length) await db.dailyStats.bulkAdd(data.dailyStats);
           if (data.grammarPoints?.length) await db.grammarPoints.bulkAdd(data.grammarPoints);
           if (data.colloquialNotes?.length) await db.colloquialNotes.bulkAdd(data.colloquialNotes);
@@ -260,35 +264,5 @@ export async function renderMorePage(container: HTMLElement): Promise<void> {
       }
     });
     input.click();
-  });
-}
-
-function showImportModal(): void {
-  const overlay = createElement('div', { className: 'modal-overlay' });
-  overlay.innerHTML = `
-    <div class="modal-content">
-      <div class="modal-header">
-        <h2>导入 CSV</h2>
-        <button class="modal-close">&times;</button>
-      </div>
-      <p style="font-size:0.85rem; color:var(--text-secondary); margin-bottom:12px;">
-        每行一个单词，格式：泰文,中文,声调,词性,例句,备注,标签
-      </p>
-      <div class="input-group">
-        <textarea class="textarea" id="csv-input" rows="8" placeholder="สวัสดี,你好,中平,感叹词,,问候语,日常;问候"></textarea>
-      </div>
-      <button class="btn btn-primary btn-block" id="btn-do-import">确认导入</button>
-    </div>
-  `;
-  document.body.appendChild(overlay);
-  overlay.querySelector('.modal-close')!.addEventListener('click', () => overlay.remove());
-  overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
-  overlay.querySelector('#btn-do-import')!.addEventListener('click', async () => {
-    const text = (overlay.querySelector('#csv-input') as HTMLTextAreaElement).value;
-    const words = parseCSV(text);
-    if (words.length === 0) { showError('未解析到有效数据'); return; }
-    const result = await importWords(words);
-    overlay.remove();
-    showSuccess(`导入成功 ${result.imported} 个${result.duplicates > 0 ? `，跳过重复 ${result.duplicates} 个` : ''}`);
   });
 }

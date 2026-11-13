@@ -3,28 +3,29 @@ import { db, type ReferenceWord } from '../db/index';
 import { addWord, findDuplicate } from '../db/vocabulary';
 import { initNewWordReview } from '../db/review';
 import { showSuccess, showError } from '../components/toast';
+import { toneZh } from '../lib/tones';
 
 const SAMPLE_REFERENCE_WORDS: Omit<ReferenceWord, 'id'>[] = [
-  { thai: 'สวัสดี', meaning: '你好', pos: '感叹词', toneMark: '中平', source: '日常' },
-  { thai: 'ขอบคุณ', meaning: '谢谢', pos: '感叹词', toneMark: '中平', source: '日常' },
-  { thai: 'ไม่', meaning: '不', pos: '副词', toneMark: '中平', source: '基础' },
-  { thai: 'ใช่', meaning: '是', pos: '副词', toneMark: '中平', source: '基础' },
-  { thai: 'น้ำ', meaning: '水', pos: '名词', toneMark: '高升', source: '日常' },
-  { thai: 'ข้าว', meaning: '饭/米饭', pos: '名词', toneMark: '高升', source: '日常' },
-  { thai: 'ไป', meaning: '去', pos: '动词', toneMark: '中平', source: '基础' },
-  { thai: 'มา', meaning: '来', pos: '动词', toneMark: '中平', source: '基础' },
-  { thai: 'กิน', meaning: '吃', pos: '动词', toneMark: '中平', source: '基础' },
-  { thai: 'รัก', meaning: '爱', pos: '动词', toneMark: '中平', source: '基础' },
-  { thai: 'ดี', meaning: '好', pos: '形容词', toneMark: '中平', source: '基础' },
-  { thai: 'ใหญ่', meaning: '大', pos: '形容词', toneMark: '中平', source: '基础' },
-  { thai: 'เล็ก', meaning: '小', pos: '形容词', toneMark: '中平', source: '基础' },
-  { thai: 'ร้อน', meaning: '热', pos: '形容词', toneMark: '降调', source: '天气' },
-  { thai: 'หนาว', meaning: '冷', pos: '形容词', toneMark: '中平', source: '天气' },
-  { thai: 'สวย', meaning: '漂亮', pos: '形容词', toneMark: '中平', source: '外貌' },
-  { thai: 'หล่อ', meaning: '帅', pos: '形容词', toneMark: '降调', source: '外貌' },
-  { thai: 'บ้าน', meaning: '家/房子', pos: '名词', toneMark: '中平', source: '日常' },
-  { thai: 'รถ', meaning: '车', pos: '名词', toneMark: '中平', source: '交通' },
-  { thai: 'โรงเรียน', meaning: '学校', pos: '名词', toneMark: '降调', source: '场所' },
+  { thai: 'สวัสดี', meaning: '你好', pos: '感叹词', toneMark: 'mid', source: '日常' },
+  { thai: 'ขอบคุณ', meaning: '谢谢', pos: '感叹词', toneMark: 'mid', source: '日常' },
+  { thai: 'ไม่', meaning: '不', pos: '副词', toneMark: 'mid', source: '基础' },
+  { thai: 'ใช่', meaning: '是', pos: '副词', toneMark: 'mid', source: '基础' },
+  { thai: 'น้ำ', meaning: '水', pos: '名词', toneMark: 'high', source: '日常' },
+  { thai: 'ข้าว', meaning: '饭/米饭', pos: '名词', toneMark: 'high', source: '日常' },
+  { thai: 'ไป', meaning: '去', pos: '动词', toneMark: 'mid', source: '基础' },
+  { thai: 'มา', meaning: '来', pos: '动词', toneMark: 'mid', source: '基础' },
+  { thai: 'กิน', meaning: '吃', pos: '动词', toneMark: 'mid', source: '基础' },
+  { thai: 'รัก', meaning: '爱', pos: '动词', toneMark: 'mid', source: '基础' },
+  { thai: 'ดี', meaning: '好', pos: '形容词', toneMark: 'mid', source: '基础' },
+  { thai: 'ใหญ่', meaning: '大', pos: '形容词', toneMark: 'mid', source: '基础' },
+  { thai: 'เล็ก', meaning: '小', pos: '形容词', toneMark: 'mid', source: '基础' },
+  { thai: 'ร้อน', meaning: '热', pos: '形容词', toneMark: 'falling', source: '天气' },
+  { thai: 'หนาว', meaning: '冷', pos: '形容词', toneMark: 'mid', source: '天气' },
+  { thai: 'สวย', meaning: '漂亮', pos: '形容词', toneMark: 'mid', source: '外貌' },
+  { thai: 'หล่อ', meaning: '帅', pos: '形容词', toneMark: 'falling', source: '外貌' },
+  { thai: 'บ้าน', meaning: '家/房子', pos: '名词', toneMark: 'mid', source: '日常' },
+  { thai: 'รถ', meaning: '车', pos: '名词', toneMark: 'mid', source: '交通' },
+  { thai: 'โรงเรียน', meaning: '学校', pos: '名词', toneMark: 'falling', source: '场所' },
 ];
 
 export async function renderReferencePage(container: HTMLElement): Promise<void> {
@@ -85,7 +86,7 @@ export async function renderReferencePage(container: HTMLElement): Promise<void>
             <div style="font-size:0.85rem; color:var(--text-secondary); margin-top:2px;">${escapeHtml(w.meaning)}</div>
             <div style="display:flex; gap:4px; margin-top:4px;">
               ${w.pos ? `<span class="tag">${escapeHtml(w.pos)}</span>` : ''}
-              ${w.toneMark ? `<span class="tag tag-tone">${escapeHtml(w.toneMark)}</span>` : ''}
+              ${toneZh(w.toneMark) ? `<span class="tag tag-tone">${escapeHtml(toneZh(w.toneMark))}</span>` : ''}
               ${w.source ? `<span class="tag" style="background:#e3f2fd; color:#1565c0; border-color:#90caf9;">${escapeHtml(w.source)}</span>` : ''}
             </div>
           </div>
