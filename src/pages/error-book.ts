@@ -1,11 +1,11 @@
-import { createElement, escapeHtml, shuffleArray } from '../lib/utils';
+import { createElement, escapeHtml, shuffleArray, toneTagsHtml } from '../lib/utils';
 import { getTodayErrors, getStubbornWordIds, markStubbornMastered, getWordErrors } from '../db/errors';
 import { getWord, getAllWords, type Word } from '../db/vocabulary';
 import { showSuccess } from '../components/toast';
 import { showWordDetail } from '../components/word-detail';
 import { showWordFormModal } from './vocabulary';
 import { getStubbornThreshold } from '../db/index';
-import { toneZh } from '../lib/tones';
+import { toneSeqZh } from '../lib/tones';
 import type { ErrorRecord } from '../db/index';
 
 const ERROR_TYPE_LABELS: Record<string, string> = {
@@ -16,11 +16,12 @@ const ERROR_TYPE_LABELS: Record<string, string> = {
   review: '复习',
 };
 
-// Legacy tone records stored raw ids ('mid') or old labels ('高升'); both are
-// unreadable in the list, so run them through the tone table before display.
+// Tone records store the raw sequence ('mid-high') or, for old rows, a single id
+// ('mid') / legacy label ('高升'); none of them reads well in a list, so run
+// them through the tone table before display. Unrecognisable values pass through.
 function prettyAnswer(errorType: string, raw: string): string {
   if (errorType !== 'tone') return raw;
-  return toneZh(raw) || raw;
+  return toneSeqZh(raw) || raw;
 }
 
 function buildErrorHistoryHtml(errors: ErrorRecord[]): string {
@@ -325,7 +326,7 @@ function startStubbornPractice(content: HTMLElement, stubbornWords: Word[]): voi
       <div class="card" style="text-align:center; padding:28px 16px; margin-bottom:20px;">
         <div style="font-size:0.85rem; color:var(--text-muted); margin-bottom:8px;">请选择正确的中文释义</div>
         <div style="font-family:var(--font-thai); font-size:2rem; font-weight:700;">${escapeHtml(word.thai)}</div>
-        ${toneZh(word.toneMark) ? `<div class="tag tag-tone" style="margin-top:8px;">${escapeHtml(toneZh(word.toneMark))}</div>` : ''}
+        ${toneTagsHtml(word.toneMark) ? `<div style="margin-top:8px;">${toneTagsHtml(word.toneMark)}</div>` : ''}
       </div>
       <div class="quiz-options" id="practice-options">
         ${options.map((opt, i) => `

@@ -3,6 +3,9 @@ import Dexie, { type Table } from 'dexie';
 export interface Word {
   id?: number;
   thai: string;
+  // 按音节顺序存成字符串：'mid' 是单音节，'mid-high' 是双音节。字段没建索引，
+  // 所以扩展取值形态不需要 Dexie 版本升级，历史单值行天然就是长度为 1 的序列。
+  // 读写一律走 lib/tones.ts 的 toneSeq* / normalizeToneSeq，不要就地 split。
   toneMark: string;
   meaning: string;
   pos: string;

@@ -60,6 +60,8 @@ for (const [raw, id] of aliases) {
   check(`别名 ${raw} → ${id}`, normalizeToneId(raw) === id, `实际 ${json(normalizeToneId(raw))}`);
 }
 check('别名前后空格仍被裁剪', normalizeToneId(' 平 ') === 'mid' && normalizeToneId(' 低 ') === 'low');
+// 注意：normalizeToneId 是「单音节」解析入口，多音节串在这里返回 null 属于预期，
+// 序列解析走 parseToneSeq / normalizeToneSeq（见 tone-seq.test.mjs）。
 for (const raw of ['', '无', 'none', '-', '—', 'unknown', 'n/a', '平-平', '也许']) {
   check(`未知/空标签 ${json(raw)} → null`, normalizeToneId(raw) === null, `实际 ${json(normalizeToneId(raw))}`);
 }
@@ -201,7 +203,7 @@ const currentHeader = '#泰文,中文,声调,词性,例句,备注,标签,罗马�
 }
 {
   const r = parseCSV('泰文,中文,声调,词性,例句,备注,标签\n,来,低,动词,,,问候\n');
-  check('缺泰文：不导入且上报', r.words.length === 0 && /缺少泰文或中文/.test(r.skipped[0]?.reason ?? ''), json(r));
+  check('缺泰文：不导入且上报', r.words.length === 0 && /泰文列为空/.test(r.skipped[0]?.reason ?? ''), json(r));
 }
 {
   const r = parseCSV('泰文,中文,声调,词性,例句,备注,标签\n"คะ","语气词（问句,女性用）",高,助词,"คุณชื่ออะไรคะ（你叫什么名字？）","他说""你好""",\n');
@@ -243,7 +245,7 @@ const currentHeader = '#泰文,中文,声调,词性,例句,备注,标签,罗马�
 {
   const r = parseCSV('泰文,中文,声调\nมา,来,也许\n');
   check('未知声调：不导入', r.words.length === 0, json(r.words));
-  check('未知声调：上报原因并保留原文', r.skipped.length === 1 && /未知声调标签：也许/.test(r.skipped[0].reason) && r.skipped[0].raw.includes('也许'), json(r.skipped));
+  check('未知声调：上报原因并保留原文', r.skipped.length === 1 && /第 1 个音节「也许」无法识别/.test(r.skipped[0].reason) && r.skipped[0].raw.includes('也许'), json(r.skipped));
 }
 {
   const r = parseCSV('泰文,中文,声调,词性\nมา,来,,动词\nได้,可以,mid,\n');
@@ -254,11 +256,17 @@ const currentHeader = '#泰文,中文,声调,词性,例句,备注,标签,罗马�
   check('“未标注”写法（-、无）按空声调导入', r.words.length === 2 && r.words.every(w => w.toneMark === ''), json(r.words));
 }
 {
+  // 多音节曾是「暂不支持」，本轮起按音节顺序收下；这里守的是新契约，不是旧行为。
   const r = parseCSV('泰文,中文,声调\nแพงไป,太贵了,平-平\n');
-  check('多音节标签 平-平：作为未支持格式上报，不静默导入', r.words.length === 0 && r.skipped.length === 1 && /暂不支持多音节声调标签/.test(r.skipped[0].reason), json(r));
-  check('多音节标签 平-平：原因与原始行都保留标签原文', r.skipped[0]?.reason.includes('平-平') && r.skipped[0]?.raw.includes('平-平'), json(r.skipped[0]));
+  check('多音节标签 平-平：按顺序导入并写成 canonical 序列',
+    r.words.length === 1 && r.words[0].toneMark === 'mid-mid' && r.skipped.length === 0, json(r));
   const r2 = parseCSV('泰文,中文,声调\nมา,来,低调-低调\nได้,可以,高调/高调\n');
-  check('其它分隔写法同样按多音节上报', r2.skipped.length === 2 && r2.skipped.every(s => /暂不支持多音节/.test(s.reason)) && r2.words.length === 0, json(r2.skipped));
+  check('其它分隔写法同样按音节序列收下',
+    r2.words.length === 2 && r2.skipped.length === 0 && r2.words[0].toneMark === 'low-low' && r2.words[1].toneMark === 'high-high',
+    json(r2));
+  const r3 = parseCSV('泰文,中文,声调\nมา,来,mid-也许\n');
+  check('序列中混入未知音节：整行不导入，不静默存成半截',
+    r3.words.length === 0 && r3.skipped.length === 1 && /第 2 个音节「也许」/.test(r3.skipped[0].reason), json(r3));
 }
 {
   const r = parseCSV('泰文,中文,声调\nมา,来,低调\nได้,可以,高升\n');
@@ -281,7 +289,8 @@ const currentHeader = '#泰文,中文,声调,词性,例句,备注,标签,罗马�
   const fixed = [
     '"คะ","语气词（问句,女性用）",高,助词,"คุณชื่ออะไรคะ（你叫什么名字？）",陈述和请求句尾用 ค่ะ,',
     '"ค่ะ","语气词（陈述、请求、回答,女性用）",降,助词,"ขอน้ำค่ะ（请给我水）",问句句尾用 คะ,',
-    // 声调列留空：本轮不为 แพงไป 的多音节标签发明任何值，只验证转义后的字段完整性。
+    // 声调列留空：这条样本只验证转义后的字段完整性，不为 แพงไป 发明声调；
+    // 它原本的 平-平 标签在下面的 label 检查里按双音节验证。
     '"แพงไป",太贵了,,固定短语,"แพงไปค่ะ ลดหน่อยได้ไหมคะ（太贵了,能便宜一点吗？）","ไป 放形容词后表“过于”",',
   ];
   const ok = parseCSV(`泰文,中文,声调,词性,例句,备注,标签\n${fixed.join('\n')}\n`);
@@ -291,7 +300,11 @@ const currentHeader = '#泰文,中文,声调,词性,例句,备注,标签,罗马�
   check('转义修复后：แพงไป 例句括号内的逗号留在同一列', ok.words[2]?.example === 'แพงไปค่ะ ลดหน่อยได้ไหมคะ（太贵了,能便宜一点吗？）' && ok.words[2]?.note === 'ไป 放形容词后表“过于”' && json(ok.words[2]?.tags) === json([]), json(ok.words[2]));
   check('转义修复后：空声调按未标注导入', ok.words[2]?.toneMark === '', json(ok.words[2]?.toneMark));
   const label = parseCSV(`泰文,中文,声调,词性,例句,备注,标签\n${fixed[2].replace(',,固定短语', ',平-平,固定短语')}\n`);
-  check('แพงไป 原标签 平-平：作为未支持格式上报，不静默写入', label.words.length === 0 && label.skipped.length === 1 && /暂不支持多音节/.test(label.skipped[0].reason), json(label));
+  check('แพงไป 原标签 平-平：转义修好后按双音节完整导入',
+    label.words.length === 1 && label.skipped.length === 0
+    && label.words[0].toneMark === 'mid-mid'
+    && label.words[0].example === 'แพงไปค่ะ ลดหน่อยได้ไหมคะ（太贵了,能便宜一点吗？）'
+    && label.words[0].note === 'ไป 放形容词后表“过于”', json(label));
 }
 
 // ---------- 6. 导出文件自身必须可回读 ----------

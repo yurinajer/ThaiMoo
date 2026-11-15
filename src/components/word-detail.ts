@@ -1,5 +1,4 @@
-import { escapeHtml } from '../lib/utils';
-import { toneLabel, toneSymbol } from '../lib/tones';
+import { escapeHtml, toneTagsHtml } from '../lib/utils';
 import { getWord, type Word } from '../db/vocabulary';
 import { speakThai, isSpeechAvailable } from '../lib/speech';
 import { showError } from './toast';
@@ -24,8 +23,7 @@ function empty(text: string): string {
 
 function buildBody(word: Word, opts: WordDetailOptions): string {
   const roman = (word.romanization ?? '').trim();
-  const tone = toneLabel(word.toneMark);
-  const symbol = toneSymbol(word.toneMark);
+  const tone = toneTagsHtml(word.toneMark, true);
   const pos = (word.pos ?? '').trim();
   const example = (word.example ?? '').trim();
   const exampleRoman = (word.exampleRoman ?? '').trim();
@@ -58,7 +56,7 @@ function buildBody(word: Word, opts: WordDetailOptions): string {
 
     ${row('罗马音', roman ? `<span class="detail-roman">${escapeHtml(roman)}</span>` : empty('未填写，可在编辑中补充'))}
 
-    ${row('声调', tone ? `<span class="tag tag-tone">${escapeHtml(tone)} ${escapeHtml(symbol)}</span>` : empty('未标注'))}
+    ${row('声调', tone || empty('未标注'))}
 
     ${row('词性', pos ? `<span class="chip">${escapeHtml(pos)}</span>` : empty('未填写'))}
 

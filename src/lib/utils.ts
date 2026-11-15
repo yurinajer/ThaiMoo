@@ -1,3 +1,5 @@
+import { toneSeqDefs } from './tones';
+
 export function formatInterval(ms: number): string {
   const seconds = Math.floor(ms / 1000);
   const minutes = Math.floor(seconds / 60);
@@ -45,6 +47,19 @@ export function escapeHtml(str: string): string {
   const div = document.createElement('div');
   div.textContent = str;
   return div.innerHTML;
+}
+
+// 声调按音节顺序逐个成标签：中平调 → 高调。空序列渲染成空串，占位文案由调用方决定。
+export function toneTagsHtml(
+  raw: string | string[] | null | undefined,
+  withSymbol = false
+): string {
+  const tones = toneSeqDefs(raw);
+  if (tones.length === 0) return '';
+  const tags = tones.map(tone =>
+    `<span class="tag tag-tone">${escapeHtml(tone.zh)}${withSymbol ? ` ${escapeHtml(tone.symbol)}` : ''}</span>`
+  );
+  return `<span class="tone-seq">${tags.join('<span class="tone-seq-arrow">→</span>')}</span>`;
 }
 
 export function $(selector: string, parent: Element | Document = document): Element | null {

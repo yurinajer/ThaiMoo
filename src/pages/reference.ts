@@ -1,9 +1,8 @@
-import { createElement, escapeHtml } from '../lib/utils';
+import { createElement, escapeHtml, toneTagsHtml } from '../lib/utils';
 import { db, type ReferenceWord } from '../db/index';
 import { addWord, findDuplicate } from '../db/vocabulary';
 import { initNewWordReview } from '../db/review';
 import { showSuccess, showError } from '../components/toast';
-import { toneZh } from '../lib/tones';
 
 const SAMPLE_REFERENCE_WORDS: Omit<ReferenceWord, 'id'>[] = [
   { thai: 'สวัสดี', meaning: '你好', pos: '感叹词', toneMark: 'mid', source: '日常' },
@@ -86,7 +85,7 @@ export async function renderReferencePage(container: HTMLElement): Promise<void>
             <div style="font-size:0.85rem; color:var(--text-secondary); margin-top:2px;">${escapeHtml(w.meaning)}</div>
             <div style="display:flex; gap:4px; margin-top:4px;">
               ${w.pos ? `<span class="tag">${escapeHtml(w.pos)}</span>` : ''}
-              ${toneZh(w.toneMark) ? `<span class="tag tag-tone">${escapeHtml(toneZh(w.toneMark))}</span>` : ''}
+              ${toneTagsHtml(w.toneMark)}
               ${w.source ? `<span class="tag" style="background:#e3f2fd; color:#1565c0; border-color:#90caf9;">${escapeHtml(w.source)}</span>` : ''}
             </div>
           </div>

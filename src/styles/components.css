@@ -165,6 +165,19 @@
   border-color: #c8e6c9;
 }
 
+/* 多音节声调：一个音节一枚标签，箭头读作「然后」 */
+.tone-seq {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.tone-seq-arrow {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+}
+
 .tag-error {
   background: #ffebee;
   color: #c62828;
@@ -970,6 +983,44 @@
   line-height: 1.5;
 }
 
+/* 声调表单：一个音节一行，自上而下即朗读顺序 */
+.tone-slot-row {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  margin-bottom: var(--spacing-sm);
+}
+
+.tone-slot-row:last-child {
+  margin-bottom: 0;
+}
+
+.tone-slot-row .select {
+  flex: 1;
+  min-width: 0;
+}
+
+.tone-slot-label {
+  flex-shrink: 0;
+  width: 62px;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+/* 窄屏放不下「标签 + 下拉 + 删除」三列，下拉只剩 71px，五种声调名会被裁掉。
+   把标签挪到上一行，下拉独占整行宽度；375px 以上仍用单行紧凑布局。 */
+@media (max-width: 360px) {
+  .tone-slot-row {
+    flex-wrap: wrap;
+    row-gap: 2px;
+  }
+
+  .tone-slot-label {
+    flex: 1 1 100%;
+    width: auto;
+  }
+}
+
 .btn-icon {
   min-width: 44px;
   min-height: 44px;
@@ -1082,6 +1133,99 @@
   line-height: 1.5;
 }
 
+/* 逐音节作答：题干里的音节进度条 */
+.tone-syllable-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: var(--spacing-md);
+}
+
+.tone-syllable-chip {
+  padding: 4px 10px;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--border-light);
+  background: var(--bg-input);
+  font-family: var(--font-thai);
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.tone-syllable-chip.done {
+  border-color: var(--border-medium);
+  color: var(--text-secondary);
+}
+
+.tone-syllable-chip.active {
+  border-color: var(--orange-500);
+  background: var(--orange-500);
+  color: var(--text-inverse);
+  font-weight: 600;
+}
+
+.tone-syllable-sep {
+  color: var(--text-muted);
+  font-size: 0.7rem;
+}
+
+/* 逐音节判定表：一行一个音节，答案与你选的都摆在同一行 */
+.tone-verdict-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: var(--spacing-sm);
+}
+
+.tone-verdict-row {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: var(--spacing-sm);
+  padding: 6px 8px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  font-size: 0.82rem;
+}
+
+.tone-verdict-row.ok {
+  border-color: #c8e6c9;
+}
+
+.tone-verdict-row.bad {
+  border-color: #ffcdd2;
+}
+
+.tone-verdict-mark {
+  font-weight: 700;
+}
+
+.tone-verdict-row.ok .tone-verdict-mark {
+  color: #2e7d32;
+}
+
+.tone-verdict-row.bad .tone-verdict-mark {
+  color: #c62828;
+}
+
+.tone-verdict-label {
+  font-family: var(--font-thai);
+  color: var(--text-secondary);
+}
+
+.tone-verdict-answer {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.tone-verdict-picked {
+  margin-left: auto;
+  color: var(--red-500);
+  font-size: 0.78rem;
+}
+
 .loading-hint {
   text-align: center;
   color: var(--text-muted);
@@ -1115,4 +1259,122 @@
   padding: var(--spacing-sm) var(--spacing-md);
   margin-bottom: var(--spacing-md);
   line-height: 1.5;
+}
+
+/* ===== CSV 自动生成规范（词库页） ===== */
+/* 默认收起只占一行；展开后长表头和示例全靠换行消化，320px 也不得出现横向滚动。 */
+.csv-spec {
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-lg);
+  padding: 12px 16px;
+  margin-bottom: var(--spacing-md);
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+}
+
+.csv-spec-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px;
+  min-height: 24px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--text-primary);
+  list-style: none;
+}
+
+.csv-spec-title::-webkit-details-marker {
+  display: none;
+}
+
+.csv-spec-title::before {
+  content: '▸';
+  color: var(--orange-500);
+}
+
+.csv-spec[open] .csv-spec-title::before {
+  content: '▾';
+}
+
+.csv-spec-sub {
+  font-weight: 400;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.csv-spec-body {
+  margin-top: 10px;
+}
+
+.csv-spec-h {
+  margin: 12px 0 4px;
+  font-weight: 600;
+  color: var(--orange-600);
+}
+
+.csv-spec-code,
+.csv-spec-pre,
+.csv-spec-id,
+.csv-agent-spec {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+.csv-spec-code,
+.csv-spec-pre {
+  padding: 8px;
+  background: var(--orange-50);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  font-size: 0.76rem;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.csv-spec-note {
+  margin-top: 4px;
+  line-height: 1.6;
+}
+
+.csv-spec-table {
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
+}
+
+.csv-spec-table th,
+.csv-spec-table td {
+  padding: 4px 6px;
+  border-bottom: 1px solid var(--border-light);
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+
+.csv-spec-table th {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.csv-spec-list {
+  margin: 0;
+  padding-left: 18px;
+  line-height: 1.7;
+}
+
+.csv-spec-list li {
+  margin-bottom: 2px;
+}
+
+.csv-agent-spec {
+  font-size: 0.76rem;
+  line-height: 1.6;
+  background: var(--orange-50);
+}
+
+.csv-spec-body .btn-block {
+  margin-top: 10px;
 }

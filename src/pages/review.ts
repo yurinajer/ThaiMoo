@@ -1,9 +1,8 @@
-import { createElement, escapeHtml, shuffleArray } from '../lib/utils';
+import { createElement, escapeHtml, shuffleArray, toneTagsHtml } from '../lib/utils';
 import { getDueReviewStates, getNewWordsWithoutReview, gradeReview, initNewWordReview, getDueCount, getNewWordCount } from '../db/review';
 import { getWord, type Word } from '../db/vocabulary';
 import { addErrorRecord } from '../db/errors';
 import { showSuccess } from '../components/toast';
-import { toneZh } from '../lib/tones';
 import type { Grade } from 'ts-fsrs';
 
 type ReviewMode = 'thai-to-cn' | 'cn-to-thai';
@@ -139,6 +138,7 @@ function startReviewSession(container: HTMLElement, items: ReviewItem[], mode: R
     }
 
     const card = createElement('div', { className: 'flashcard', id: 'flashcard' });
+    const toneTags = toneTagsHtml(item.word.toneMark);
 
     if (mode === 'thai-to-cn') {
       card.innerHTML = `
@@ -146,7 +146,7 @@ function startReviewSession(container: HTMLElement, items: ReviewItem[], mode: R
           <div class="flashcard-front">
             <div class="thai-text-lg" style="font-weight:500;">${escapeHtml(item.word.thai)}</div>
             ${(item.word.romanization ?? '').trim() ? `<div class="card-roman">${escapeHtml(item.word.romanization!.trim())}</div>` : ''}
-            ${toneZh(item.word.toneMark) ? `<div class="tag tag-tone" style="margin-top:8px;">${escapeHtml(toneZh(item.word.toneMark))}</div>` : ''}
+            ${toneTags ? `<div style="margin-top:8px;">${toneTags}</div>` : ''}
             <div class="flashcard-hint">点击翻转查看释义</div>
           </div>
           <div class="flashcard-back">
@@ -170,7 +170,7 @@ function startReviewSession(container: HTMLElement, items: ReviewItem[], mode: R
           <div class="flashcard-back">
             <div class="thai-text-lg" style="font-weight:500;">${escapeHtml(item.word.thai)}</div>
             ${(item.word.romanization ?? '').trim() ? `<div class="card-roman">${escapeHtml(item.word.romanization!.trim())}</div>` : ''}
-            ${toneZh(item.word.toneMark) ? `<div class="tag tag-tone" style="margin-top:8px;">${escapeHtml(toneZh(item.word.toneMark))}</div>` : ''}
+            ${toneTags ? `<div style="margin-top:8px;">${toneTags}</div>` : ''}
             ${item.word.example ? `<div style="font-size:0.85rem; color:var(--text-muted); font-family:var(--font-thai); margin-top:8px;">${escapeHtml(item.word.example)}</div>` : ''}
           </div>
         </div>

@@ -1,5 +1,5 @@
 import { db, type Word } from './index';
-import { normalizeToneId, toneZh } from '../lib/tones';
+import { MAX_TONE_SYLLABLES, isToneBlank, normalizeToneSeq, parseToneSeq, toneSeqToStorage } from '../lib/tones';
 export type { Word } from './index';
 
 export async function addWord(word: Omit<Word, 'id' | 'createdAt' | 'updatedAt'>): Promise<number> {
@@ -79,6 +79,7 @@ type CsvField =
   | 'thai' | 'meaning' | 'toneMark' | 'pos' | 'example'
   | 'note' | 'tags' | 'romanization' | 'exampleRoman' | 'exampleMeaning';
 
+// 声调列按音节顺序填写，多音节用 - 连接（mid-high）；读取侧还接受 / → 与空格。
 const CSV_FIELDS: Record<string, CsvField> = {
   泰文: 'thai',
   中文: 'meaning',
@@ -92,8 +93,14 @@ const CSV_FIELDS: Record<string, CsvField> = {
   例句中文: 'exampleMeaning',
 };
 
-const CSV_COLUMNS = Object.keys(CSV_FIELDS);
+// 页面里的「CSV 自动生成规范」直接引用这份列名，说明文字不可能和解析器各说一套。
+export const CSV_COLUMNS = Object.keys(CSV_FIELDS);
 const DEFAULT_ORDER = Object.values(CSV_FIELDS);
+// 报错要指名道姓，所以反查一份“字段→列名”，表头顺序被打乱时也报的是真实列名。
+const CSV_LABELS = Object.entries(CSV_FIELDS).reduce((acc, [label, field]) => {
+  acc[field] = label;
+  return acc;
+}, {} as Record<CsvField, string>);
 const REQUIRED_LABELS = ['泰文', '中文'];
 
 export interface CSVRow {
@@ -107,6 +114,7 @@ export interface CSVRow {
 
 export interface CSVSkip {
   line: number;
+  column?: string;
   reason: string;
   raw: string;
 }
@@ -282,20 +290,22 @@ function isShiftedRow(fields: string[], fieldQuoted: boolean[]): boolean {
   return crossed && total === 0;
 }
 
-// 与 tones.ts 的空白标记同集合：这些写法表示“未标注”，按空声调导入。
-const TONE_BLANK = new Set(['', '无', 'none', '-', '—', 'unknown', 'n/a']);
+const TONE_FORMAT_HINT = '可填 mid / low / falling / high / rising，或旧标签 平 / 低 / 降 / 高 / 升；多音节按顺序写，例如 mid-high';
 
-// 未知声调不能静默清成空值：整行进入 skipped，原文保留在 raw 里。
-// 多音节标签（平-平）属于 F7 范畴，本轮只按未支持格式报告，不设计新规则。
+// 声调列一次给出整条音节序列。哪个音节认不出来就报哪个音节，超出上限就报实际
+// 个数——未知声调不能静默清成空值，整行进入 skipped，原文保留在 raw 里。
 function toneProblem(raw: string): string | null {
   const label = raw.trim();
-  if (TONE_BLANK.has(label.toLowerCase())) return null;
-  if (normalizeToneId(label)) return null;
-  const parts = label.split(/[-–—/／|·、]+/).map(s => s.trim()).filter(Boolean);
-  if (parts.length > 1 && parts.every(p => normalizeToneId(p))) {
-    return `暂不支持多音节声调标签：${label}（逐音节声调存储属于 F7，未实施）`;
+  if (isToneBlank(label)) return null;
+  const { tones, invalid } = parseToneSeq(label);
+  if (invalid.length > 0) {
+    const first = invalid[0];
+    return `第 ${first.index} 个音节「${first.value}」无法识别（共 ${tones.length + invalid.length} 个音节）。${TONE_FORMAT_HINT}`;
   }
-  return `未知声调标签：${label}`;
+  if (tones.length > MAX_TONE_SYLLABLES) {
+    return `写了 ${tones.length} 个音节，最多 ${MAX_TONE_SYLLABLES} 个：${label}`;
+  }
+  return null;
 }
 
 export function parseCSV(text: string): ParsedCSV {
@@ -320,7 +330,7 @@ export function parseCSV(text: string): ParsedCSV {
     }
     if (row.comment) continue;
 
-    const reject = (reason: string) => skipped.push({ line, reason, raw });
+    const reject = (reason: string, column?: string) => skipped.push({ line, column, reason, raw });
 
     if (row.quoteError) {
       reject(row.quoteError);
@@ -347,14 +357,17 @@ export function parseCSV(text: string): ParsedCSV {
     const thai = cellOf('thai');
     const meaning = cellOf('meaning');
     if (!thai || !meaning) {
-      reject('缺少泰文或中文');
+      const missing: string[] = [];
+      if (!thai) missing.push(CSV_LABELS.thai);
+      if (!meaning) missing.push(CSV_LABELS.meaning);
+      reject(`${missing.join('、')}列为空`, missing.join('、'));
       continue;
     }
 
-    const toneLabel = cellOf('toneMark');
-    const toneIssue = toneProblem(toneLabel);
+    const toneCell = cellOf('toneMark');
+    const toneIssue = toneProblem(toneCell);
     if (toneIssue) {
-      reject(toneIssue);
+      reject(toneIssue, CSV_LABELS.toneMark);
       continue;
     }
 
@@ -362,7 +375,7 @@ export function parseCSV(text: string): ParsedCSV {
     words.push({
       thai,
       meaning,
-      toneMark: normalizeToneId(toneLabel) ?? '',
+      toneMark: toneSeqToStorage(normalizeToneSeq(toneCell)),
       pos: cellOf('pos'),
       example: cellOf('example'),
       note: cellOf('note'),
@@ -383,7 +396,8 @@ export function exportWordsToCSV(words: Word[]): string {
     [
       w.thai,
       w.meaning,
-      toneZh(w.toneMark) || w.toneMark || '',
+      // 认不出的历史脏值原样带出，导出不能替用户悄悄丢掉标注。
+      toneSeqToStorage(normalizeToneSeq(w.toneMark)) || w.toneMark || '',
       w.pos,
       w.example,
       w.note,
