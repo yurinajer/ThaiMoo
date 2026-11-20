@@ -50,7 +50,7 @@ export async function renderReviewPage(container: HTMLElement): Promise<void> {
 
     <div class="tabs" id="mode-tabs">
       <button class="tab active" data-mode="thai-to-cn">泰文 → 中文</button>
-      <button class="tab" data-mode="cn-to-thai">中文 → 泰文</button>
+      <button class="tab" data-mode="cn-to-thai">中文 → 泰文 · 默写</button>
     </div>
 
     <button class="btn btn-primary btn-block btn-lg" id="btn-start-review">开始复习</button>
@@ -137,10 +137,12 @@ function startReviewSession(container: HTMLElement, items: ReviewItem[], mode: R
       content.appendChild(badge);
     }
 
-    const card = createElement('div', { className: 'flashcard', id: 'flashcard' });
+    const card = createElement('div', {});
     const toneTags = toneTagsHtml(item.word.toneMark);
 
     if (mode === 'thai-to-cn') {
+      card.className = 'flashcard';
+      card.id = 'flashcard';
       card.innerHTML = `
         <div class="flashcard-inner">
           <div class="flashcard-front">
@@ -160,21 +162,9 @@ function startReviewSession(container: HTMLElement, items: ReviewItem[], mode: R
         </div>
       `;
     } else {
-      card.innerHTML = `
-        <div class="flashcard-inner">
-          <div class="flashcard-front">
-            <div style="font-size:1.3rem; font-weight:600; margin-bottom:8px;">${escapeHtml(item.word.meaning)}</div>
-            ${item.word.pos ? `<div style="font-size:0.85rem; color:var(--text-secondary);">${escapeHtml(item.word.pos)}</div>` : ''}
-            <div class="flashcard-hint">点击翻转查看泰文拼写</div>
-          </div>
-          <div class="flashcard-back">
-            <div class="thai-text-lg" style="font-weight:500;">${escapeHtml(item.word.thai)}</div>
-            ${(item.word.romanization ?? '').trim() ? `<div class="card-roman">${escapeHtml(item.word.romanization!.trim())}</div>` : ''}
-            ${toneTags ? `<div style="margin-top:8px;">${toneTags}</div>` : ''}
-            ${item.word.example ? `<div style="font-size:0.85rem; color:var(--text-muted); font-family:var(--font-thai); margin-top:8px;">${escapeHtml(item.word.example)}</div>` : ''}
-          </div>
-        </div>
-      `;
+      card.className = 'dictation-card';
+      card.id = 'dictation-card';
+      card.innerHTML = dictationCardHtml(item.word);
     }
 
     content.appendChild(card);
@@ -200,13 +190,45 @@ function startReviewSession(container: HTMLElement, items: ReviewItem[], mode: R
     `;
     content.appendChild(fsrsButtons);
 
-    card.addEventListener('click', () => {
-      if (!isFlipped) {
-        isFlipped = true;
-        card.classList.add('flipped');
+    if (mode === 'thai-to-cn') {
+      card.addEventListener('click', () => {
+        if (!isFlipped) {
+          isFlipped = true;
+          card.classList.add('flipped');
+          document.getElementById('fsrs-buttons')!.style.display = 'grid';
+        }
+      });
+    } else {
+      const input = card.querySelector('#dictation-input') as HTMLInputElement;
+      const submitBtn = card.querySelector('#btn-submit-dictation') as HTMLButtonElement;
+      let submitted = false;
+
+      input.addEventListener('input', () => {
+        submitBtn.disabled = submitted || !canSubmitDictation(input.value);
+      });
+
+      const submitAnswer = () => {
+        if (submitted || !canSubmitDictation(input.value)) return;
+        submitted = true;
+        input.blur();
+        submitBtn.style.display = 'none';
+        const userAnswer = createElement('div', { className: 'dictation-user-answer' }, input.value);
+        input.replaceWith(userAnswer);
+        (card.querySelector('#dictation-user-label') as HTMLElement).style.display = 'block';
+        const reveal = card.querySelector('#dictation-reveal') as HTMLElement;
+        reveal.innerHTML = dictationRevealHtml(item.word);
+        reveal.style.display = 'block';
         document.getElementById('fsrs-buttons')!.style.display = 'grid';
-      }
-    });
+      };
+
+      submitBtn.addEventListener('click', submitAnswer);
+      input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          submitAnswer();
+        }
+      });
+    }
 
     header.querySelector('#btn-back')!.addEventListener('click', () => {
       if (confirm('确定退出复习？进度将保留。')) {
@@ -238,6 +260,34 @@ function startReviewSession(container: HTMLElement, items: ReviewItem[], mode: R
   }
 
   renderCurrentItem();
+}
+
+export function canSubmitDictation(value: string): boolean {
+  return value.trim().length > 0;
+}
+
+export function dictationCardHtml(word: Word): string {
+  return `
+    <div class="dictation-meaning">${escapeHtml(word.meaning)}</div>
+    ${word.pos ? `<div class="dictation-pos">${escapeHtml(word.pos)}</div>` : ''}
+    <div class="dictation-user-label" id="dictation-user-label" style="display:none;">你的答案</div>
+    <input id="dictation-input" class="input dictation-input" type="text" lang="th"
+      placeholder="凭记忆输入泰文拼写" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="done">
+    <button class="btn btn-primary btn-block btn-lg dictation-submit" id="btn-submit-dictation" disabled>提交答案</button>
+    <div class="dictation-reveal" id="dictation-reveal" style="display:none;"></div>
+  `;
+}
+
+export function dictationRevealHtml(word: Word): string {
+  const toneTags = toneTagsHtml(word.toneMark);
+  return `
+    <div class="dictation-reveal-label">正确答案</div>
+    <div class="thai-text-lg" style="font-weight:500;">${escapeHtml(word.thai)}</div>
+    ${(word.romanization ?? '').trim() ? `<div class="card-roman">${escapeHtml(word.romanization!.trim())}</div>` : ''}
+    ${toneTags ? `<div style="margin-top:8px;">${toneTags}</div>` : ''}
+    ${word.example ? `<div style="font-size:0.85rem; color:var(--text-muted); font-family:var(--font-thai); margin-top:8px;">${escapeHtml(word.example)}</div>` : ''}
+    <div class="dictation-hint">对照上方你的答案，自行评分</div>
+  `;
 }
 
 function renderSessionComplete(container: HTMLElement, correct: number, total: number): void {

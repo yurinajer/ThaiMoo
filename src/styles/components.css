@@ -621,6 +621,90 @@
   opacity: 0.7;
 }
 
+/* 中译泰默写卡片 */
+.dictation-card {
+  background: var(--bg-card);
+  border: 2px solid var(--border-light);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-md);
+  padding: var(--spacing-xl);
+  margin: var(--spacing-lg) 0;
+  text-align: center;
+}
+
+.dictation-meaning {
+  font-size: 1.3rem;
+  font-weight: 600;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.dictation-pos {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  margin-top: 4px;
+}
+
+.dictation-user-label {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  text-align: left;
+  margin-top: var(--spacing-lg);
+}
+
+.dictation-input {
+  margin-top: var(--spacing-lg);
+  font-family: var(--font-thai);
+  font-size: 1.25rem;
+  text-align: center;
+  min-height: 52px;
+}
+
+.dictation-user-answer {
+  margin-top: var(--spacing-xs);
+  padding: 12px 16px;
+  min-height: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid var(--orange-300);
+  border-radius: var(--radius-md);
+  background: var(--orange-100);
+  font-family: var(--font-thai);
+  font-size: 1.25rem;
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+}
+
+.dictation-submit {
+  margin-top: var(--spacing-md);
+}
+
+.dictation-reveal {
+  margin-top: var(--spacing-lg);
+  padding: var(--spacing-lg);
+  border-radius: var(--radius-lg);
+  background: linear-gradient(135deg, var(--orange-100), var(--orange-200));
+  border: 2px solid var(--orange-300);
+}
+
+.dictation-reveal-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--orange-700);
+  margin-bottom: 4px;
+}
+
+.dictation-reveal .thai-text-lg {
+  overflow-wrap: anywhere;
+}
+
+.dictation-hint {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin-top: var(--spacing-md);
+}
+
 /* Consonant card */
 .consonant-card {
   background: var(--bg-card);
