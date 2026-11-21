@@ -41,7 +41,7 @@ export async function renderMorePage(container: HTMLElement): Promise<void> {
       <div class="section-title"><span class="emoji">📊</span> 学习数据</div>
       <div class="card" style="padding:0; overflow:hidden;">
         <div class="list-item" data-nav="/progress" style="cursor:pointer;">
-          <span style="font-size:1.2rem;">📈</span>
+          <span class="row-icon-dot"></span>
           <div class="list-item-content">
             <div class="list-item-title">学习进度</div>
             <div class="list-item-subtitle">统计图表与成就</div>
@@ -49,7 +49,7 @@ export async function renderMorePage(container: HTMLElement): Promise<void> {
           <span style="color:var(--text-muted);">›</span>
         </div>
         <div class="list-item" data-nav="/error-book" style="cursor:pointer;">
-          <span style="font-size:1.2rem;">📕</span>
+          <span class="row-icon-dot"></span>
           <div class="list-item-content">
             <div class="list-item-title">错词本</div>
             <div class="list-item-subtitle">今日错词与顽固词</div>
@@ -57,7 +57,7 @@ export async function renderMorePage(container: HTMLElement): Promise<void> {
           <span style="color:var(--text-muted);">›</span>
         </div>
         <div class="list-item" data-nav="/reference" style="cursor:pointer;">
-          <span style="font-size:1.2rem;">📚</span>
+          <span class="row-icon-dot"></span>
           <div class="list-item-content">
             <div class="list-item-title">参考词库</div>
             <div class="list-item-subtitle">搜索参考词，加入学习</div>
@@ -71,7 +71,7 @@ export async function renderMorePage(container: HTMLElement): Promise<void> {
       <div class="section-title"><span class="emoji">📖</span> 学习工具</div>
       <div class="card" style="padding:0; overflow:hidden;">
         <div class="list-item" data-nav="/tone-training" style="cursor:pointer;">
-          <span style="font-size:1.2rem;">🎵</span>
+          <span class="row-icon-dot"></span>
           <div class="list-item-content">
             <div class="list-item-title">声调规则训练</div>
             <div class="list-item-subtitle">看泰文选声调，展示推导步骤</div>
@@ -79,7 +79,7 @@ export async function renderMorePage(container: HTMLElement): Promise<void> {
           <span style="color:var(--text-muted);">›</span>
         </div>
         <div class="list-item" data-nav="/consonants" style="cursor:pointer;">
-          <span style="font-size:1.2rem;">🔤</span>
+          <span class="row-icon-dot"></span>
           <div class="list-item-content">
             <div class="list-item-title">辅音分类</div>
             <div class="list-item-subtitle">高/中/低辅音卡片与测验</div>
@@ -87,7 +87,7 @@ export async function renderMorePage(container: HTMLElement): Promise<void> {
           <span style="color:var(--text-muted);">›</span>
         </div>
         <div class="list-item" data-nav="/spelling" style="cursor:pointer;">
-          <span style="font-size:1.2rem;">📝</span>
+          <span class="row-icon-dot"></span>
           <div class="list-item-content">
             <div class="list-item-title">拼写读音对照</div>
             <div class="list-item-subtitle">不发音字母、尾辅音转换</div>
@@ -95,7 +95,7 @@ export async function renderMorePage(container: HTMLElement): Promise<void> {
           <span style="color:var(--text-muted);">›</span>
         </div>
         <div class="list-item" data-nav="/minimal-pairs" style="cursor:pointer;">
-          <span style="font-size:1.2rem;">👂</span>
+          <span class="row-icon-dot"></span>
           <div class="list-item-content">
             <div class="list-item-title">易混淆词</div>
             <div class="list-item-subtitle">形近词对比练习</div>
@@ -103,7 +103,7 @@ export async function renderMorePage(container: HTMLElement): Promise<void> {
           <span style="color:var(--text-muted);">›</span>
         </div>
         <div class="list-item" data-nav="/colloquial" style="cursor:pointer;">
-          <span style="font-size:1.2rem;">💬</span>
+          <span class="row-icon-dot"></span>
           <div class="list-item-content">
             <div class="list-item-title">口语吞音笔记</div>
             <div class="list-item-subtitle">记录口语变形</div>
@@ -117,28 +117,28 @@ export async function renderMorePage(container: HTMLElement): Promise<void> {
       <div class="section-title"><span class="emoji">💾</span> 数据管理</div>
       <div class="card" style="padding:0; overflow:hidden;">
         <div class="list-item" id="btn-export" style="cursor:pointer;">
-          <span style="font-size:1.2rem;">⬇️</span>
+          <span class="row-icon-dot"></span>
           <div class="list-item-content">
             <div class="list-item-title">导出词库</div>
             <div class="list-item-subtitle">备份为 CSV 文件</div>
           </div>
         </div>
         <div class="list-item" id="btn-import" style="cursor:pointer;">
-          <span style="font-size:1.2rem;">⬆️</span>
+          <span class="row-icon-dot"></span>
           <div class="list-item-content">
             <div class="list-item-title">导入词库</div>
             <div class="list-item-subtitle">粘贴 CSV 批量导入，自动跳过重复</div>
           </div>
         </div>
         <div class="list-item" id="btn-export-all" style="cursor:pointer;">
-          <span style="font-size:1.2rem;">📦</span>
+          <span class="row-icon-dot"></span>
           <div class="list-item-content">
             <div class="list-item-title">导出全部数据</div>
             <div class="list-item-subtitle">备份所有学习数据 (JSON)</div>
           </div>
         </div>
         <div class="list-item" id="btn-import-all" style="cursor:pointer;">
-          <span style="font-size:1.2rem;">📥</span>
+          <span class="row-icon-dot"></span>
           <div class="list-item-content">
             <div class="list-item-title">恢复全部数据</div>
             <div class="list-item-subtitle">从 JSON 备份恢复</div>

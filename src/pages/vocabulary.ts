@@ -16,14 +16,14 @@ export async function renderVocabularyPage(container: HTMLElement): Promise<void
 
   content.innerHTML = `
     <div class="search-bar">
-      <span class="search-icon">🔍</span>
+      <span class="search-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--tone-dark-coffee)" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="16.5" y1="16.5" x2="21" y2="21"/></svg></span>
       <input type="text" id="vocab-search" placeholder="搜索泰文、中文、标签..." />
     </div>
 
     <div style="display:flex; gap:8px; margin-bottom:16px;">
       <button class="btn btn-primary btn-sm" id="btn-add-word" style="flex:1">+ 添加单词</button>
-      <button class="btn btn-secondary btn-sm" id="btn-import-csv" style="flex:1">📋 批量导入</button>
-      <button class="btn btn-outline btn-sm" id="btn-export-csv">⬇️</button>
+      <button class="btn btn-secondary btn-sm" id="btn-import-csv" style="flex:1">批量导入</button>
+      <button class="btn btn-outline btn-sm" id="btn-export-csv" title="导出 CSV"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--tone-deep-orange)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle"><line x1="12" y1="4" x2="12" y2="15"/><polyline points="6 10 12 16 18 10"/><path d="M5 19h14"/></svg></button>
     </div>
 
     <details class="csv-spec">
@@ -61,7 +61,7 @@ export async function renderVocabularyPage(container: HTMLElement): Promise<void
 
         <div class="csv-spec-h">Agent 指令（整段可复制）</div>
         <textarea class="textarea csv-agent-spec" id="csv-agent-spec" rows="16" readonly spellcheck="false">${escapeHtml(csvAgentSpec())}</textarea>
-        <button class="btn btn-secondary btn-block" id="btn-copy-csv-spec">📋 复制 Agent 生成规范</button>
+        <button class="btn btn-secondary btn-block" id="btn-copy-csv-spec">复制 Agent 生成规范</button>
       </div>
     </details>
 

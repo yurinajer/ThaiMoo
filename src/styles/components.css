@@ -820,12 +820,13 @@
   min-width: 48px;
 }
 
-.nav-item.active {
-  color: var(--orange-500);
-}
-
 .nav-item.active .nav-icon {
   transform: scale(1.1);
+}
+
+.nav-item.active .nav-label {
+  color: #a67c52;
+  font-weight: 700;
 }
 
 .nav-icon {
@@ -835,9 +836,11 @@
   transition: transform var(--transition-fast);
 }
 
-.nav-icon svg {
+.nav-icon-img {
   width: 22px;
   height: 22px;
+  object-fit: contain;
+  display: block;
 }
 
 .nav-label {

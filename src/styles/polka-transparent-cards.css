@@ -1,0 +1,171 @@
+/* src/styles/polka-transparent-cards.css
+ * 1. 波点背景铺满整个页面（浅橙 #ffd988、深橙 #ffa262、深咖 #9c7564）
+ * 2. 卡片使用适中半透明纯色，波点可透出
+ * 3. 去除标题前置图标（⚡📖 等），改用简约小圆点；预留小蝴蝶图片位置
+ *    本文件与底部导航 1.png ~ 5.png 无关，不引用任何导航图标。
+ */
+
+/* 全局字体：字动力夜晟体（由系统 TTF 6.0MB 转 WOFF2 约 2.3MB） */
+@font-face {
+  font-family: 'ZiDongLiYeShengTi';
+  src: url('/fonts/zidongli-yeshengti.woff2') format('woff2');
+  font-weight: normal;
+  font-display: swap;
+}
+
+/* 泰文字体：Mali（本地 Mali-Regular.TTF 105KB 转 WOFF2 约 46KB）
+   font-weight 声明为全区间：让 500/600/700 都落在这一个字形上，浏览器不做伪粗体描边 */
+@font-face {
+  font-family: 'Mali';
+  src: url('/fonts/mali-regular.woff2') format('woff2');
+  font-weight: 100 900;
+  font-display: swap;
+}
+
+:root {
+  /* 覆盖 variables.css：中/英文 UI 字体整体换为夜晟体，泰文换为 Mali
+     两条栈互为兜底，且都把 Mali 之外的字体排在后面：
+     --font-cn 里 Noto 无泰文字形 → 混排泰文由 Mali 承接；
+     --font-thai 里 Mali/Sarabun/Noto Sans Thai 均无汉字字形 → 句型卡里的中文由夜晟体承接，
+     不再掉到末尾 sans-serif 变成系统雅黑 */
+  --font-cn: 'ZiDongLiYeShengTi', 'Noto Sans SC', 'Mali', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-thai: 'Mali', 'ZiDongLiYeShengTi', 'Noto Sans SC', 'Sarabun', 'Noto Sans Thai', sans-serif;
+
+  --tone-light-orange: #ffd988; /* 浅橙色 */
+  --tone-deep-orange: #ffa262;  /* 深橙色 */
+  --tone-dark-coffee: #9c7564;  /* 深咖色 */
+
+  /* 可调整：波点大小与间距 */
+  --dot-size: 2.5px;
+  --dot-gap: 18px;
+
+  /* 可调整：卡片背景（适中半透明纯色；如需完全透明可改为 transparent） */
+  --card-translucent-bg: rgba(255, 250, 240, 0.8);
+  --card-transparent-bg: transparent;
+
+  /* 可调整：简约小圆点尺寸与颜色 */
+  --mini-dot-size: 7px;
+  --mini-dot-color: var(--tone-deep-orange);
+}
+
+/* 页面底色 */
+html,
+body {
+  background-color: #fffaf0;
+}
+
+/* 铺满整个页面的波点背景：覆盖 main.css 原有的 body::before 双层淡点阵 */
+body::before {
+  content: '';
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background-image:
+    radial-gradient(circle, var(--tone-light-orange) var(--dot-size), transparent var(--dot-size)),
+    radial-gradient(circle, var(--tone-deep-orange) calc(var(--dot-size) - 0.9px), transparent calc(var(--dot-size) - 0.9px)),
+    radial-gradient(circle, rgba(156, 117, 100, 0.4) 1px, transparent 1px);
+  background-size:
+    var(--dot-gap) var(--dot-gap),
+    calc(var(--dot-gap) * 2) calc(var(--dot-gap) * 2),
+    calc(var(--dot-gap) * 1.5) calc(var(--dot-gap) * 1.5);
+  background-position:
+    0 0,
+    12px 9px,
+    6px 17px;
+  opacity: 0.55;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* 全站卡片：适中半透明纯色 + 柔和边框，让波点透出 */
+.card {
+  background-color: var(--card-translucent-bg);
+  border: 1px solid rgba(156, 117, 100, 0.28);
+}
+
+/* 卡片：适中半透明纯色工具类（可按需叠加到特定卡片） */
+.card-translucent {
+  background-color: var(--card-translucent-bg);
+  border: 1.5px solid rgba(156, 117, 100, 0.28);
+  border-radius: 18px;
+  color: var(--tone-dark-coffee);
+}
+
+/* 卡片：完全透明样式（按需用于特定区域） */
+.card-transparent {
+  background-color: var(--card-transparent-bg);
+  border: 1.5px solid rgba(156, 117, 100, 0.25);
+  border-radius: 18px;
+  color: var(--tone-dark-coffee);
+}
+
+/* 隐藏原有标题/条目前多余的图标元素（供后续模板绑定旧图标类） */
+.legacy-prefix-icon {
+  display: none !important;
+}
+
+/* 各页面「快速入口 / 学习工具 / 数据管理」等标题：
+   去掉原 ⚡📖📊💾 等 emoji 前缀，改用简约小圆点 */
+.emoji {
+  display: none !important;
+}
+
+.section-title::before {
+  content: '';
+  width: var(--mini-dot-size);
+  height: var(--mini-dot-size);
+  border-radius: 50%;
+  background-color: var(--mini-dot-color);
+  flex-shrink: 0;
+}
+
+/* 顶栏：#D97B29 纵向渐变晕染，底部过渡到页面奶油色 */
+.page-header {
+  background:
+    radial-gradient(150% 90% at 50% 0%, rgba(255, 217, 136, 0.28) 0%, rgba(255, 217, 136, 0) 65%),
+    linear-gradient(180deg, #d97b29 0%, #e5913f 48%, #f7c88b 100%);
+  box-shadow: 0 8px 20px rgba(217, 123, 41, 0.22);
+}
+
+/* 列表行首图标（错词本/声调训练/数据管理等）：emoji 已移除，改用简约小圆点 */
+.row-icon-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: var(--tone-deep-orange);
+  flex-shrink: 0;
+}
+
+/* 方案 A：标题或条目前使用简约小圆点（纯 CSS，供模板按需套用） */
+.prefix-dot-marker {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--tone-dark-coffee);
+}
+
+.prefix-dot-marker::before {
+  content: '';
+  width: var(--mini-dot-size);
+  height: var(--mini-dot-size);
+  border-radius: 50%;
+  background-color: var(--mini-dot-color);
+  flex-shrink: 0;
+}
+
+/* 方案 B：预留小蝴蝶图片位置。
+   将蝴蝶图片放到 public/icons/butterfly.png 即自动显示，无需改代码；
+   图片不存在时仅占 16px 空位，不影响布局。 */
+.prefix-butterfly-marker {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--tone-dark-coffee);
+}
+
+.prefix-butterfly-marker::before {
+  content: '';
+  width: 16px;
+  height: 16px;
+  background: url('/icons/butterfly.png') center / contain no-repeat;
+  flex-shrink: 0;
+}
