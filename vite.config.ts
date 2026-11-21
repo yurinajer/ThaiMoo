@@ -41,7 +41,7 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,json,png,svg,woff2}'],
-        // 全局字体 woff2 约 2.3MB，超出默认 2MiB 预缓存上限，放宽以支持离线可用
+        // 全局字体 woff2 约 2.0MB，超出默认 2MiB 预缓存上限，放宽以支持离线可用
         maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
         // 全站资源已本地化，离线时任意路径导航都回落到已预缓存的 index.html
         navigateFallback: 'index.html',
