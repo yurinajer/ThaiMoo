@@ -1,7 +1,10 @@
-import { db, type Word } from './index';
+import { db, getOrCreateDailyStat, type Word } from './index';
 import { MAX_TONE_SYLLABLES, isToneBlank, normalizeToneSeq, parseToneSeq, toneSeqToStorage } from '../lib/tones';
 export type { Word } from './index';
 
+// 「今日新词」按入库计：手动添加、CSV 导入、参考词库加入生词本三条路径都汇到 addWord，
+// 计数记在这里就不怕以后新增入库入口漏计。备份恢复走 db.words.bulkAdd 不经过本函数，
+// 所以不会把整个旧词库冒充成今天新学的词。删除词不回退计数（历史学习量不做减法）。
 export async function addWord(word: Omit<Word, 'id' | 'createdAt' | 'updatedAt'>): Promise<number> {
   const now = Date.now();
   const newWord: Word = {
@@ -9,7 +12,11 @@ export async function addWord(word: Omit<Word, 'id' | 'createdAt' | 'updatedAt'>
     createdAt: now,
     updatedAt: now,
   };
-  return await db.words.add(newWord);
+  const id = await db.words.add(newWord);
+  const stat = await getOrCreateDailyStat();
+  stat.newWords++;
+  await db.dailyStats.put(stat);
+  return id;
 }
 
 export async function updateWord(id: number, changes: Partial<Word>): Promise<void> {
@@ -81,7 +88,8 @@ export async function importWords(words: Omit<Word, 'id' | 'createdAt' | 'update
   let duplicates = 0;
   const ids: number[] = [];
 
-  await db.transaction('rw', db.words, async () => {
+  // dailyStats 必须在事务域里：循环里每个 addWord 都要给「今日新词」计数
+  await db.transaction('rw', [db.words, db.dailyStats], async () => {
     for (const word of words) {
       const existing = await db.words.where('thai').equals(word.thai).first();
       if (existing) {

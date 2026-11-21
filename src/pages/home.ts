@@ -1,6 +1,6 @@
 import { createElement, escapeHtml, toneTagsHtml } from '../lib/utils';
 import { getProgressSummary } from '../db/progress';
-import { getDueCount, getNewWordCount } from '../db/review';
+import { getDueCount, getNewWordCount, planSessionCounts } from '../db/review';
 import { getTodayErrorCount, getStubbornWordIds, getTodayErrors } from '../db/errors';
 import { getWord, type Word } from '../db/vocabulary';
 import { recordDailyActivity } from '../db/progress';
@@ -55,6 +55,8 @@ export async function renderHomePage(container: HTMLElement): Promise<void> {
   }
 
   const totalDue = dueCount + newCount;
+  // 按钮上的数字是「本轮真的会考几张」，不是库里的积压量；积压量在上面两格里已经写了
+  const planned = planSessionCounts(dueCount, newCount).planned;
 
   content.innerHTML = `
     <div class="animate-fade-in">
@@ -76,7 +78,7 @@ export async function renderHomePage(container: HTMLElement): Promise<void> {
           </div>
         </div>
         <button class="btn btn-primary btn-lg btn-block" id="btn-start-review" ${totalDue === 0 ? 'disabled' : ''}>
-          ${totalDue > 0 ? `开始今日复习 (${totalDue})` : '今日暂无复习任务'}
+          ${totalDue > 0 ? `开始今日复习 (${planned})` : '今日暂无复习任务'}
         </button>
       </div>
     </div>

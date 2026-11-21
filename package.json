@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
-    "test": "node tests/f1-f2.test.mjs && node tests/tone-seq.test.mjs && node tests/stubborn-mastered.test.mjs && node tests/voice-clips.test.mjs && node tests/grammar-search.test.mjs && node tests/grammar-seed.test.mjs && node tests/review-dictation.test.mjs"
+    "test": "node tests/f1-f2.test.mjs && node tests/tone-seq.test.mjs && node tests/stubborn-mastered.test.mjs && node tests/voice-clips.test.mjs && node tests/grammar-search.test.mjs && node tests/grammar-seed.test.mjs && node tests/review-dictation.test.mjs && node tests/review-ladder.test.mjs && node tests/review-queue.test.mjs"
   },
   "dependencies": {
     "dexie": "^4.0.11",

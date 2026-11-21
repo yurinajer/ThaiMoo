@@ -665,10 +665,10 @@
   margin-top: var(--spacing-md);
 }
 
-/* FSRS rating buttons */
+/* 复习评分按钮：固定六档，3 列 2 行 */
 .fsrs-buttons {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: var(--spacing-sm);
   margin-top: var(--spacing-lg);
 }
@@ -710,10 +710,52 @@
   background: #e3f2fd;
   color: #1565c0;
 }
+.fsrs-btn-learned {
+  background: #ede7f6;
+  color: #4527a0;
+}
+.fsrs-btn-mastered {
+  background: #e0f2f1;
+  color: #00695c;
+}
 
 .fsrs-btn .interval {
   font-size: 0.65rem;
   opacity: 0.7;
+}
+
+/* 已牢记名单：折叠入口 + 展开后的行 */
+.graduated-toggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  padding: 0;
+  border: none;
+  background: none;
+  font-family: var(--font-cn);
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+  text-align: left;
+}
+
+#graduated-panel[hidden] {
+  display: none;
+}
+
+.graduated-empty {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  padding: var(--spacing-md) 0;
+}
+
+/* 单轮上限的剩余量提示，只在真的装不下时才渲染 */
+.review-cap-notice {
+  margin-top: var(--spacing-sm);
+  text-align: center;
+  font-size: 0.8rem;
+  color: var(--text-muted);
 }
 
 /* 中译泰默写卡片 */

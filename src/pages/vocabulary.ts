@@ -1,6 +1,5 @@
 import { createElement, escapeHtml, toneTagsHtml } from '../lib/utils';
 import { getAllWords, addWord, deleteWord, deleteWords, updateWord, searchWords, parseCSV, importWords, exportWordsToCSV, downloadCSV, CSV_COLUMNS, type CSVSkip } from '../db/vocabulary';
-import { initNewWordReview } from '../db/review';
 import { showSuccess, showError } from '../components/toast';
 import { showWordDetail } from '../components/word-detail';
 import { TONES, MAX_TONE_SYLLABLES, normalizeToneSeq, toneSeqToStorage, type ToneDef, type ToneId } from '../lib/tones';
@@ -431,8 +430,8 @@ export function showWordFormModal(existing: Word | null, onSaved: () => void): v
       await updateWord(existing!.id!, wordData);
       showSuccess('已保存修改');
     } else {
-      const id = await addWord({ ...wordData, groupId: undefined });
-      await initNewWordReview(id);
+      // 只入词库，不写排期行：新词进「新词池」，由复习页每轮抽 SESSION_NEW_LIMIT 个激活
+      await addWord({ ...wordData, groupId: undefined });
       showSuccess('添加成功');
     }
 
@@ -588,10 +587,6 @@ export function showImportModal(onSaved?: () => void): void {
     }
 
     const result = await importWords(words);
-
-    for (const id of result.ids) {
-      await initNewWordReview(id);
-    }
 
     overlay.remove();
     showSuccess(`导入成功 ${result.imported} 个${result.duplicates > 0 ? `，跳过重复 ${result.duplicates} 个` : ''}${skipped.length > 0 ? `，${skipped.length} 行异常数据未导入` : ''}`);

@@ -1,7 +1,6 @@
 import { createElement, escapeHtml, toneTagsHtml } from '../lib/utils';
 import { db, type ReferenceWord } from '../db/index';
 import { addWord, findDuplicate } from '../db/vocabulary';
-import { initNewWordReview } from '../db/review';
 import { showSuccess, showError } from '../components/toast';
 
 const SAMPLE_REFERENCE_WORDS: Omit<ReferenceWord, 'id'>[] = [
@@ -106,7 +105,7 @@ export async function renderReferencePage(container: HTMLElement): Promise<void>
           return;
         }
 
-        const newId = await addWord({
+        await addWord({
           thai: refWord.thai,
           meaning: refWord.meaning,
           toneMark: refWord.toneMark,
@@ -117,7 +116,6 @@ export async function renderReferencePage(container: HTMLElement): Promise<void>
           groupId: undefined,
         });
 
-        await initNewWordReview(newId);
         showSuccess(`已添加 "${refWord.thai}" 到词库`);
         (btn as HTMLButtonElement).textContent = '已添加';
         (btn as HTMLButtonElement).disabled = true;
