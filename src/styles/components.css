@@ -409,6 +409,101 @@
   pointer-events: none;
 }
 
+/* 词库批量管理：吸顶工具条，勾选状态和删除入口在长列表里始终可见 */
+.bulk-bar {
+  position: sticky;
+  top: calc(var(--header-height) + var(--safe-top));
+  z-index: 90;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 10px 12px;
+  margin-bottom: 8px;
+  background: var(--bg-card);
+  border: 2px solid var(--orange-300);
+  border-radius: var(--radius-md);
+}
+
+.bulk-bar-count {
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.bulk-bar-actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.bulk-bar-hint {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  line-height: 1.6;
+  margin: 0 0 12px;
+}
+
+.word-card-select {
+  cursor: pointer;
+}
+
+.word-check {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  accent-color: var(--orange-400);
+}
+
+/* 跟读录音条（单词详情 / 复习卡片共用） */
+.audio-bar {
+  margin: 12px 0;
+  padding: 12px;
+  background: var(--orange-50);
+  border: 1px solid var(--orange-200);
+  border-radius: var(--radius-md);
+}
+
+.audio-bar-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.audio-bar-status {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.audio-bar-clips {
+  display: flex;
+  flex-direction: column;
+}
+
+.clip-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.clip-meta {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.audio-bar-empty {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  line-height: 1.6;
+  margin: 0;
+}
+
 /* Floating action button */
 .fab {
   position: fixed;

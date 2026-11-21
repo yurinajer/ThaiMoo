@@ -192,7 +192,9 @@ async function main() {
 
   // ---------- 6. 旧版 boolean 数据迁移 ----------
   {
-    check('Dexie 声明版本为 2', db.verno === 2, `实际 ${db.verno}`);
+    // 只要求「声明版本已经把 v2 迁移包含进来」：后续再加新表会让 verno 继续上涨，
+    // 写死等号会让每个无关的加表改动都要来改这条断言。
+    check('Dexie 声明版本覆盖 mastered 迁移（v2 及以后）', db.verno >= 2, `实际 ${db.verno}`);
     check('ThaiLearnDB 构造函数支持传入隔离库名', new ThaiLearnDB(STUBBORN_LEGACY_DB).name === STUBBORN_LEGACY_DB, `实际 ${new ThaiLearnDB(STUBBORN_LEGACY_DB).name}`);
 
     const legacyStubborn = [
@@ -256,7 +258,7 @@ async function main() {
     // 6.2 用修复后的类打开同一个库，触发 version(2) 迁移
     const migrated = new ThaiLearnDB(STUBBORN_LEGACY_DB);
     const migratedRows = await migrated.stubbornWords.toArray();
-    check('迁移后版本号升到 2', migrated.verno === 2, `实际 ${migrated.verno}`);
+    check('迁移后版本号已包含 v2 迁移', migrated.verno >= 2, `实际 ${migrated.verno}`);
     check('迁移后记录条数不变', migratedRows.length === 5, `实际 ${migratedRows.length}`);
     check('迁移后主键 wordId 不变', json(migratedRows.map(r => r.wordId)) === json([11, 12, 13, 14, 15]), `实际 ${json(migratedRows.map(r => r.wordId))}`);
     check('迁移后 false → 0', migratedRows.find(r => r.wordId === 11)?.mastered === 0, `实际 ${json(migratedRows.find(r => r.wordId === 11)?.mastered)}`);

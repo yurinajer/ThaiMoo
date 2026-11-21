@@ -17,12 +17,35 @@ export async function updateWord(id: number, changes: Partial<Word>): Promise<vo
 }
 
 export async function deleteWord(id: number): Promise<void> {
-  await db.transaction('rw', db.words, db.reviewStates, db.errorRecords, db.stubbornWords, async () => {
-    await db.words.delete(id);
-    await db.reviewStates.delete(id);
-    await db.errorRecords.where('wordId').equals(id).delete();
-    await db.stubbornWords.delete(id);
-  });
+  await deleteWords([id]);
+}
+
+export async function deleteWords(ids: number[]): Promise<number> {
+  if (ids.length === 0) return 0;
+  const doomed = new Set(ids);
+
+  await db.transaction(
+    'rw',
+    [db.words, db.reviewStates, db.errorRecords, db.stubbornWords, db.minimalPairGroups, db.voiceClips],
+    async () => {
+      await db.words.bulkDelete(ids);
+      await db.reviewStates.bulkDelete(ids);
+      await db.stubbornWords.bulkDelete(ids);
+      await db.errorRecords.where('wordId').anyOf(ids).delete();
+      await db.voiceClips.where('wordId').anyOf(ids).delete();
+      // 对比组的 wordIds 是普通数组字段、没有索引，只能整表过一遍再回写。
+      // 全空的组直接收掉：一个词都不剩就没有可对比的对象；只剩 1 个词的组保留，
+      // 页面自己会提示「有效单词不足 2 个」，用户还能继续往里加词。
+      const groups = await db.minimalPairGroups.toArray();
+      for (const group of groups) {
+        const kept = group.wordIds.filter(id => !doomed.has(id));
+        if (kept.length === 0) await db.minimalPairGroups.delete(group.id!);
+        else if (kept.length !== group.wordIds.length) await db.minimalPairGroups.update(group.id!, { wordIds: kept });
+      }
+    }
+  );
+
+  return ids.length;
 }
 
 export async function getWord(id: number): Promise<Word | undefined> {

@@ -27,29 +27,47 @@ export async function renderGrammarPage(container: HTMLElement): Promise<void> {
   const userCount = points.filter(p => p.isUserCreated).length;
 
   content.innerHTML = `
-    <div style="font-size:0.8rem; color:var(--text-muted); margin-bottom:12px;">
-      共 ${points.length} 条句型，其中自建 ${userCount} 条
+    <div class="search-bar">
+      <span class="search-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--tone-dark-coffee)" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="16.5" y1="16.5" x2="21" y2="21"/></svg></span>
+      <input type="text" id="grammar-search" placeholder="搜索句型名称、泰语句型、例句..." />
     </div>
+
+    <div id="grammar-stats" style="font-size:0.8rem; color:var(--text-muted); margin-bottom:12px;"></div>
     <div id="grammar-list"></div>
     <button class="fab" id="btn-add-grammar" aria-label="新增句型">＋</button>
   `;
 
   const list = content.querySelector('#grammar-list') as HTMLElement;
+  const stats = content.querySelector('#grammar-stats') as HTMLElement;
+  const searchInput = content.querySelector('#grammar-search') as HTMLInputElement;
 
-  if (points.length === 0) {
-    list.innerHTML = `
+  function renderList(query: string): void {
+    const q = query.toLowerCase();
+    const view = q ? points.filter(p => grammarMatches(p, q)) : points;
+
+    stats.textContent = q
+      ? `匹配 ${view.length} / ${points.length} 条句型`
+      : `共 ${points.length} 条句型，其中自建 ${userCount} 条`;
+
+    if (view.length === 0) {
+      list.innerHTML = q
+        ? `<div class="empty-state" style="margin-top:40px;"><p>没有匹配的句型</p><p style="font-size:0.8rem; color:var(--text-muted); margin-top:8px;">换个关键词，或清空搜索框看全部</p></div>`
+        : `
       <div class="empty-state" style="margin-top:40px;">
         <span class="emoji">📐</span>
         <p>还没有语法句型</p>
         <p style="font-size:0.8rem; color:var(--text-muted); margin-top:8px;">点击右下角 ＋ 新增第一条</p>
       </div>
     `;
-  } else {
-    list.innerHTML = points.map((p, idx) => `
-      <div class="card grammar-card" data-idx="${idx}" style="margin-bottom:12px;">
+      return;
+    }
+
+    // 圆点里的序号保持全列表序号：搜索结果跳序说明它在第几条，点进详情才对得上。
+    list.innerHTML = view.map(p => `
+      <div class="card grammar-card" data-idx="${points.indexOf(p)}" style="margin-bottom:12px;">
         <div style="display:flex; align-items:center; gap:12px;">
           <div style="width:32px; height:32px; border-radius:50%; background:var(--orange-400); color:white; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:0.85rem; flex-shrink:0;">
-            ${idx + 1}
+            ${points.indexOf(p) + 1}
           </div>
           <div style="flex:1; min-width:0;">
             <div style="font-weight:600; font-size:0.95rem;">${escapeHtml(p.title)}</div>
@@ -71,9 +89,25 @@ export async function renderGrammarPage(container: HTMLElement): Promise<void> {
     });
   }
 
+  searchInput.addEventListener('input', () => renderList(searchInput.value.trim()));
+
   content.querySelector('#btn-add-grammar')!.addEventListener('click', () => {
     showGrammarFormModal(null, () => renderGrammarPage(container));
   });
+
+  renderList('');
+}
+
+export function grammarMatches(p: GrammarPoint, q: string): boolean {
+  // 自建句型靠这个词搜到，例句和补充说明也一起搜：用户记得的是句子而不是语法名称。
+  return p.title.toLowerCase().includes(q)
+    || p.content.toLowerCase().includes(q)
+    || (p.note ?? '').toLowerCase().includes(q)
+    || p.patterns.some(x => x.toLowerCase().includes(q))
+    || p.examples.some(e =>
+      e.thai.toLowerCase().includes(q)
+      || e.meaning.toLowerCase().includes(q)
+      || (e.roman ?? '').toLowerCase().includes(q));
 }
 
 function showGrammarDetail(

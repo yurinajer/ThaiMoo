@@ -2,6 +2,7 @@ import { createElement, escapeHtml, shuffleArray, toneTagsHtml } from '../lib/ut
 import { getDueReviewStates, getNewWordsWithoutReview, gradeReview, initNewWordReview, getDueCount, getNewWordCount } from '../db/review';
 import { getWord, type Word } from '../db/vocabulary';
 import { addErrorRecord } from '../db/errors';
+import { mountAudioBar, type AudioBarHandle } from '../components/audio-bar';
 import { showSuccess } from '../components/toast';
 import type { Grade } from 'ts-fsrs';
 
@@ -10,6 +11,25 @@ type ReviewMode = 'thai-to-cn' | 'cn-to-thai';
 interface ReviewItem {
   word: Word;
   isNew: boolean;
+}
+
+// 复习是一页一题地重绘容器，切题和跳出页面都不会触发组件自己的清理，
+// 所以正在录的麦克风和正在放音频要由这里统一收掉。
+let reviewBar: AudioBarHandle | null = null;
+let cleanupBound = false;
+
+function bindReviewCleanup(): void {
+  if (cleanupBound) return;
+  cleanupBound = true;
+  window.addEventListener('hashchange', () => {
+    reviewBar?.destroy();
+    reviewBar = null;
+  });
+}
+
+function destroyReviewBar(): void {
+  reviewBar?.destroy();
+  reviewBar = null;
 }
 
 export async function renderReviewPage(container: HTMLElement): Promise<void> {
@@ -101,11 +121,14 @@ async function buildReviewQueue(): Promise<ReviewItem[]> {
 }
 
 function startReviewSession(container: HTMLElement, items: ReviewItem[], mode: ReviewMode): void {
+  bindReviewCleanup();
   let currentIndex = 0;
   let correctCount = 0;
   let isFlipped = false;
 
   function renderCurrentItem(): void {
+    destroyReviewBar();
+
     if (currentIndex >= items.length) {
       renderSessionComplete(container, correctCount, items.length);
       return;
@@ -169,6 +192,14 @@ function startReviewSession(container: HTMLElement, items: ReviewItem[], mode: R
 
     content.appendChild(card);
 
+    // 泰→中 的卡面本来就写着泰文，朗读和跟读录音可以直接放出来；
+    // 中→泰 默写要等提交后才挂，否则一听读音就等于给了答案。
+    const audioHost = createElement('div', { className: 'review-audio' });
+    content.appendChild(audioHost);
+    if (mode === 'thai-to-cn') {
+      reviewBar = mountAudioBar(audioHost, item.word.id!, item.word.thai, { speak: true });
+    }
+
     const fsrsButtons = createElement('div', { className: 'fsrs-buttons', style: 'display:none;', id: 'fsrs-buttons' });
     fsrsButtons.innerHTML = `
       <button class="fsrs-btn fsrs-btn-again" data-grade="1">
@@ -219,6 +250,7 @@ function startReviewSession(container: HTMLElement, items: ReviewItem[], mode: R
         reveal.innerHTML = dictationRevealHtml(item.word);
         reveal.style.display = 'block';
         document.getElementById('fsrs-buttons')!.style.display = 'grid';
+        if (!reviewBar) reviewBar = mountAudioBar(audioHost, item.word.id!, item.word.thai, { speak: true });
       };
 
       submitBtn.addEventListener('click', submitAnswer);

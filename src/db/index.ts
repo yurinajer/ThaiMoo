@@ -98,6 +98,17 @@ export interface Setting {
   value: string;
 }
 
+export interface VoiceClip {
+  id?: number;
+  wordId: number;
+  // Blob 直接走 IndexedDB 的结构化克隆，不参与索引；只有导出备份时才转 base64。
+  blob: Blob;
+  mime: string;
+  // 文件选择回退路径拿不到时长，留空表示未知。
+  durationMs?: number;
+  createdAt: number;
+}
+
 export interface ReferenceWord {
   id?: number;
   thai: string;
@@ -118,6 +129,7 @@ export class ThaiLearnDB extends Dexie {
   dailyStats!: Table<DailyStat>;
   settings!: Table<Setting>;
   referenceWords!: Table<ReferenceWord>;
+  voiceClips!: Table<VoiceClip>;
 
   constructor(name = 'ThaiLearnDB') {
     super(name);
@@ -145,6 +157,10 @@ export class ThaiLearnDB extends Dexie {
       // 否则 mastered=2 这类脏数据会绕过 0|1 类型约束继续留在索引里。
       if (row.mastered !== 0 && row.mastered !== 1) row.mastered = row.mastered === true ? 1 : 0;
     }));
+    // v3 只声明一张新表：现有 10 张表的索引定义原样继承，不写 upgrade 就不动任何历史数据。
+    this.version(3).stores({
+      voiceClips: '++id, wordId, createdAt',
+    });
   }
 }
 

@@ -1,12 +1,17 @@
 import { escapeHtml, toneTagsHtml } from '../lib/utils';
 import { getWord, type Word } from '../db/vocabulary';
 import { speakThai, isSpeechAvailable } from '../lib/speech';
+import { mountAudioBar, type AudioBarHandle } from './audio-bar';
 import { showError } from './toast';
 
 export interface WordDetailOptions {
   extraHtml?: string;
   onEdit?: (word: Word) => void;
 }
+
+// 同一时刻只有一个详情抽屉，但抽屉可能被直接顶掉而不走 close()，
+// 所以把手放在模块级，保证麦克风和播放器随时收得回来。
+let activeBar: AudioBarHandle | null = null;
 
 function row(label: string, valueHtml: string): string {
   return `
@@ -54,6 +59,8 @@ function buildBody(word: Word, opts: WordDetailOptions): string {
       ${speakBtn}
     </div>
 
+    ${word.id ? `<div id="wd-audio"></div>` : ''}
+
     ${row('罗马音', roman ? `<span class="detail-roman">${escapeHtml(roman)}</span>` : empty('未填写，可在编辑中补充'))}
 
     ${row('声调', tone || empty('未标注'))}
@@ -77,6 +84,9 @@ function buildBody(word: Word, opts: WordDetailOptions): string {
 export function showWordDetail(word: Word, opts: WordDetailOptions = {}): void {
   const previous = document.querySelector('.sheet-overlay');
   if (previous) previous.remove();
+  // 上一个抽屉被直接顶掉时没走 close()，麦克风和播放器也得收掉。
+  activeBar?.destroy();
+  activeBar = null;
 
   const overlay = document.createElement('div');
   overlay.className = 'sheet-overlay';
@@ -93,9 +103,16 @@ export function showWordDetail(word: Word, opts: WordDetailOptions = {}): void {
   document.body.appendChild(overlay);
 
   const close = () => {
+    activeBar?.destroy();
+    activeBar = null;
     overlay.classList.add('closing');
     setTimeout(() => overlay.remove(), 180);
   };
+
+  const audioHost = overlay.querySelector('#wd-audio');
+  if (audioHost instanceof HTMLElement && word.id) {
+    activeBar = mountAudioBar(audioHost, word.id, word.thai);
+  }
 
   overlay.querySelector('.modal-close')!.addEventListener('click', close);
   overlay.addEventListener('click', e => { if (e.target === overlay) close(); });

@@ -1,5 +1,5 @@
 import { createElement, escapeHtml, toneTagsHtml } from '../lib/utils';
-import { getAllWords, addWord, deleteWord, updateWord, searchWords, parseCSV, importWords, exportWordsToCSV, downloadCSV, CSV_COLUMNS, type CSVSkip } from '../db/vocabulary';
+import { getAllWords, addWord, deleteWord, deleteWords, updateWord, searchWords, parseCSV, importWords, exportWordsToCSV, downloadCSV, CSV_COLUMNS, type CSVSkip } from '../db/vocabulary';
 import { initNewWordReview } from '../db/review';
 import { showSuccess, showError } from '../components/toast';
 import { showWordDetail } from '../components/word-detail';
@@ -24,7 +24,10 @@ export async function renderVocabularyPage(container: HTMLElement): Promise<void
       <button class="btn btn-primary btn-sm" id="btn-add-word" style="flex:1">+ 添加单词</button>
       <button class="btn btn-secondary btn-sm" id="btn-import-csv" style="flex:1">批量导入</button>
       <button class="btn btn-outline btn-sm" id="btn-export-csv" title="导出 CSV"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--tone-deep-orange)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle"><line x1="12" y1="4" x2="12" y2="15"/><polyline points="6 10 12 16 18 10"/><path d="M5 19h14"/></svg></button>
+      <button class="btn btn-outline btn-sm" id="btn-bulk-manage" style="flex:1">批量管理</button>
     </div>
+
+    <div id="bulk-bar"></div>
 
     <details class="csv-spec">
       <summary class="csv-spec-title">CSV 自动生成规范<span class="csv-spec-sub">外部 Agent 生成数据时照这份写</span></summary>
@@ -70,10 +73,73 @@ export async function renderVocabularyPage(container: HTMLElement): Promise<void
 
   const wordListEl = content.querySelector('#word-list') as HTMLElement;
   const searchInput = content.querySelector('#vocab-search') as HTMLInputElement;
+  const bulkBarEl = content.querySelector('#bulk-bar') as HTMLElement;
+  const bulkToggleBtn = content.querySelector('#btn-bulk-manage') as HTMLButtonElement;
+
+  let managing = false;
+  let shownWords: Word[] = [];
+  const selected = new Set<number>();
+
+  function renderBulkBar() {
+    if (!managing) {
+      bulkBarEl.innerHTML = '';
+      return;
+    }
+    const allChecked = shownWords.length > 0 && shownWords.every(w => selected.has(w.id!));
+    bulkBarEl.innerHTML = `
+      <div class="bulk-bar">
+        <span class="bulk-bar-count">已选 ${selected.size} / 当前结果 ${shownWords.length}</span>
+        <span class="bulk-bar-actions">
+          <button class="btn btn-sm btn-secondary" id="btn-bulk-all">${allChecked ? '取消全选' : '全选结果'}</button>
+          <button class="btn btn-sm btn-danger" id="btn-bulk-del" ${selected.size === 0 ? 'disabled' : ''}>删除选中</button>
+          <button class="btn btn-sm btn-outline" id="btn-bulk-exit">退出管理</button>
+        </span>
+      </div>
+      <p class="bulk-bar-hint">全选只作用于当前搜索或列表结果；换关键词筛选后，之前勾选的词仍保留在已选里。</p>
+    `;
+
+    bulkBarEl.querySelector('#btn-bulk-all')!.addEventListener('click', () => {
+      if (shownWords.every(w => selected.has(w.id!))) {
+        for (const w of shownWords) selected.delete(w.id!);
+      } else {
+        for (const w of shownWords) selected.add(w.id!);
+      }
+      loadWords(searchInput.value.trim());
+    });
+    bulkBarEl.querySelector('#btn-bulk-del')!.addEventListener('click', deleteSelected);
+    bulkBarEl.querySelector('#btn-bulk-exit')!.addEventListener('click', () => setManaging(false));
+  }
+
+  function setManaging(next: boolean) {
+    managing = next;
+    selected.clear();
+    bulkToggleBtn.textContent = next ? '退出管理' : '批量管理';
+    loadWords(searchInput.value.trim());
+  }
+
+  async function deleteSelected() {
+    const ids = [...selected];
+    if (ids.length === 0) return;
+    // 删除是行级不可逆操作，确认文案必须把连带清掉的东西列全。
+    if (!confirm(
+      `将删除 ${ids.length} 个单词，并连带删除它们的复习进度、错题记录、顽固词标记、对比组关联和跟读录音。\n\n` +
+      `此操作无法撤销。建议先到「我的」页导出全部数据备份。\n\n确定继续？`
+    )) return;
+
+    const n = await deleteWords(ids);
+    showSuccess(`已删除 ${n} 个单词`);
+    setManaging(false);
+  }
 
   async function loadWords(query?: string) {
     const words = query ? await searchWords(query) : await getAllWords();
-    renderWordList(wordListEl, words, () => loadWords(searchInput.value.trim()));
+    shownWords = words;
+    renderWordList(wordListEl, words, () => loadWords(searchInput.value.trim()), {
+      managing,
+      selected,
+      onCountChange: renderBulkBar
+    });
+    renderBulkBar();
   }
 
   let searchTimer: ReturnType<typeof setTimeout>;
@@ -84,6 +150,7 @@ export async function renderVocabularyPage(container: HTMLElement): Promise<void
 
   content.querySelector('#btn-add-word')!.addEventListener('click', () => showWordFormModal(null, () => loadWords(searchInput.value.trim())));
   content.querySelector('#btn-import-csv')!.addEventListener('click', () => showImportModal(loadWords));
+  bulkToggleBtn.addEventListener('click', () => setManaging(!managing));
   content.querySelector('#btn-export-csv')!.addEventListener('click', async () => {
     const words = await getAllWords();
     if (words.length === 0) {
@@ -115,9 +182,16 @@ export async function renderVocabularyPage(container: HTMLElement): Promise<void
   });
 }
 
-function renderWordList(container: HTMLElement, words: Word[], onRefresh: () => void): void {
+function renderWordList(
+  container: HTMLElement,
+  words: Word[],
+  onRefresh: () => void,
+  manage: { managing: boolean; selected: Set<number>; onCountChange: () => void }
+): void {
   if (words.length === 0) {
-    container.innerHTML = `
+    container.innerHTML = manage.managing
+      ? `<div class="empty-state"><p>没有匹配的词</p><p style="font-size:0.8rem; margin-top:8px;">换个关键词，或清空搜索框看全部</p></div>`
+      : `
       <div class="empty-state">
         <span class="emoji">🍊</span>
         <p>还没有单词</p>
@@ -129,9 +203,14 @@ function renderWordList(container: HTMLElement, words: Word[], onRefresh: () => 
 
   container.innerHTML = '';
   for (const word of words) {
-    const item = createElement('div', { className: 'card word-card', style: 'margin-bottom:8px; padding:12px 16px;' });
+    const checked = manage.selected.has(word.id!);
+    const item = createElement('div', {
+      className: 'card word-card' + (manage.managing ? ' word-card-select' : ''),
+      style: 'margin-bottom:8px; padding:12px 16px;'
+    });
     item.innerHTML = `
       <div style="display:flex; align-items:center; justify-content:space-between; gap:8px;">
+        ${manage.managing ? `<input type="checkbox" class="word-check" ${checked ? 'checked' : ''} aria-label="选中 ${escapeHtml(word.thai)}" />` : ''}
         <div style="flex:1; min-width:0;">
           <div style="font-family:var(--font-thai); font-size:1.3rem; font-weight:500;">${escapeHtml(word.thai)}</div>
           ${(word.romanization ?? '').trim() ? `<div class="word-card-roman">${escapeHtml(word.romanization!.trim())}</div>` : ''}
@@ -141,9 +220,25 @@ function renderWordList(container: HTMLElement, words: Word[], onRefresh: () => 
             ${word.pos ? `<span class="tag">${escapeHtml(word.pos)}</span>` : ''}
           </div>
         </div>
-        <button class="btn btn-icon word-del-btn" data-id="${word.id}" title="删除" style="color:var(--red-400); font-size:1.2rem;">✕</button>
+        ${manage.managing ? '' : `<button class="btn btn-icon word-del-btn" data-id="${word.id}" title="删除" style="color:var(--red-400); font-size:1.2rem;">✕</button>`}
       </div>
     `;
+
+    if (manage.managing) {
+      const box = item.querySelector('.word-check') as HTMLInputElement;
+      // 勾选框自己处理 change，卡片其余区域靠 click；阻止冒泡避免一次点击翻两次状态。
+      const toggle = () => {
+        if (manage.selected.has(word.id!)) manage.selected.delete(word.id!);
+        else manage.selected.add(word.id!);
+        box.checked = manage.selected.has(word.id!);
+        manage.onCountChange();
+      };
+      box.addEventListener('click', e => e.stopPropagation());
+      box.addEventListener('change', toggle);
+      item.addEventListener('click', toggle);
+      container.appendChild(item);
+      continue;
+    }
 
     item.addEventListener('click', () => {
       showWordDetail(word, { onEdit: w => showWordFormModal(w, onRefresh) });
@@ -151,7 +246,7 @@ function renderWordList(container: HTMLElement, words: Word[], onRefresh: () => 
 
     item.querySelector('.word-del-btn')!.addEventListener('click', async (e) => {
       e.stopPropagation();
-      if (confirm(`确定删除 "${word.thai}" 吗？`)) {
+      if (confirm(`确定删除 "${word.thai}" 吗？它的复习进度、错题记录、对比组关联和跟读录音会一并删除。`)) {
         await deleteWord(word.id!);
         item.remove();
         showSuccess('已删除');
