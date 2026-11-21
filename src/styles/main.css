@@ -7,9 +7,14 @@
 }
 
 html {
-  font-size: 16px;
+  font-size: calc(16px * var(--cn-scale));
   -webkit-text-size-adjust: 100%;
   -webkit-tap-highlight-color: transparent;
+}
+
+/* 表单控件默认不吃 body 字体，底部导航等按钮会掉回系统字体 */
+button, input, select, textarea {
+  font-family: inherit;
 }
 
 body {

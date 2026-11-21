@@ -48,8 +48,9 @@
   --font-thai: 'Sarabun', 'Noto Sans Thai', sans-serif;
   --font-cn: 'Noto Sans SC', -apple-system, BlinkMacSystemFont, sans-serif;
 
-  --nav-height: 64px;
+  --nav-height: 68px;
   --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-top: env(safe-area-inset-top, 0px);
   --header-height: 56px;
 
   --spacing-xs: 4px;

@@ -46,6 +46,20 @@
   /* 可调整：简约小圆点尺寸与颜色 */
   --mini-dot-size: 7px;
   --mini-dot-color: var(--tone-deep-orange);
+
+  /* 可调整：全站字号倍率，rem 字号全部由它换算，改这一个数就能整体放大/缩小 */
+  --cn-scale: 1.09;
+  /* 可调整：字面加粗量（相对字号，0 即关闭）。
+     夜晟体只有一个字重：font-weight>=600 会触发浏览器伪粗体，实测墨量一次性 +64%，太猛；
+     描边可以连续微调，实测 0.012em 在 16px 下约 +20% 墨量 */
+  --cn-ink: 0.012em;
+}
+
+/* 中文加粗：描边随字号等比缩放。
+   作用于 body 并向下继承，因此泰文/罗马音同样吃到这份加粗——CSS 无法按文字种类选择，
+   参考页的泰文是无 class 的裸元素，白名单方式必然漏。需要关掉时把 --cn-ink 改为 0。 */
+body {
+  -webkit-text-stroke: var(--cn-ink) currentColor;
 }
 
 /* 页面底色 */
@@ -124,6 +138,8 @@ body::before {
     radial-gradient(150% 90% at 50% 0%, rgba(255, 217, 136, 0.28) 0%, rgba(255, 217, 136, 0) 65%),
     linear-gradient(180deg, #d97b29 0%, #e5913f 48%, #f7c88b 100%);
   box-shadow: 0 8px 20px rgba(217, 123, 41, 0.22);
+  /* standalone 全屏 + viewport-fit=cover 时，顶栏要避开刘海/挖孔区 */
+  padding-top: calc(var(--spacing-md) + var(--safe-top));
 }
 
 /* 列表行首图标（错词本/声调训练/数据管理等）：emoji 已移除，改用简约小圆点 */
