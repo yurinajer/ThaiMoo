@@ -184,6 +184,12 @@ check('任意非空文本都允许提交（不自动判拼写）', canSubmitDict
   check('喇叭不使用屏幕固定悬浮', !/\.card-speak \{[^}]*position: (fixed|sticky)/.test(css) && !/position: fixed[^}]*card-speak/.test(css));
   check('卡面顶部避让，词条不被图标压住',
     /\.review-card \.flashcard-front,\s*\.review-card \.flashcard-back \{\s*padding-top: 60px;\s*\}/.test(css));
+  check('翻转卡片盒随内容长高：两面同格堆叠，沿用速刷卡的做法',
+    /\.flashcard\.review-card \.flashcard-inner \{\s*display: grid;\s*height: auto;\s*\}/.test(css)
+    && /\.flashcard\.review-card \.flashcard-front,\s*\.flashcard\.review-card \.flashcard-back \{\s*position: relative;\s*grid-area: 1 \/ 1;\s*\}/.test(css));
+  check('六档按钮只保留基础间距，不再为固定高度补硬编码偏移',
+    !/\.review-card \+ \.fsrs-buttons/.test(css)
+    && /\.fsrs-buttons \{[^}]*margin-top: var\(--spacing-lg\);\s*\}/.test(css));
   check('抽屉里的喇叭靠词头右上，长词换行不顶掉按钮',
     /\.detail-head \.card-speak \{[^}]*flex-shrink: 0/.test(css) && /\.detail-head-main \{\s*min-width: 0;\s*\}/.test(css));
   check('播放中有轻微状态反馈', /\.card-speak\.speaking \{/.test(css) && /classList\.add\('speaking'\)/.test(speakSrc) && /classList\.remove\('speaking'\)/.test(speakSrc));

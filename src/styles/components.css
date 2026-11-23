@@ -666,6 +666,21 @@
   transform: rotateY(180deg);
 }
 
+/* 公共 .flashcard 的两面是绝对定位、卡盒固定 240px，内容一长就溢出卡盒压住下面的六档按钮。
+   复习卡改成和速刷同款的两面同格堆叠：卡盒随较长的正面或背面长高，
+   因此背面无论塞多长的备注、例句都不会越过卡片边界，间距也不必再靠硬编码偏移补。
+   翻转动画、喇叭定位容器、顶部 60px 避让全部沿用，只作用于复习卡。 */
+.flashcard.review-card .flashcard-inner {
+  display: grid;
+  height: auto;
+}
+
+.flashcard.review-card .flashcard-front,
+.flashcard.review-card .flashcard-back {
+  position: relative;
+  grid-area: 1 / 1;
+}
+
 .flashcard-hint {
   font-size: 0.8rem;
   color: var(--text-muted);
