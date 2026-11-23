@@ -1602,3 +1602,148 @@
 .csv-spec-body .btn-block {
   margin-top: 10px;
 }
+
+/* ===== 单词速刷 ===== */
+/* 卡面和进度条复用 .flashcard/.progress-bar，这里只补速刷自己的作答行、统计行和背面字段排版 */
+
+/* 速刷背面字段比复习卡更多，公共 .flashcard 的两面是绝对定位、卡盒固定 240px，
+   内容一长就溢出卡盒压住下面的作答按钮。这里改成同格堆叠，让卡盒随内容长高，
+   只作用于速刷卡，不改公共组件的其他使用方。 */
+.flashcard.speed-card .flashcard-inner {
+  display: grid;
+  height: auto;
+}
+
+.flashcard.speed-card .flashcard-front,
+.flashcard.speed-card .flashcard-back {
+  position: relative;
+  grid-area: 1 / 1;
+}
+
+.speed-progress-text {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.speed-stats {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--spacing-xs);
+  margin: var(--spacing-md) 0 var(--spacing-sm);
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+.speed-stats b {
+  font-weight: 700;
+  color: var(--orange-600);
+  font-variant-numeric: tabular-nums;
+}
+
+.speed-answer {
+  font-size: 1.35rem;
+  font-weight: 600;
+}
+
+.speed-pos {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  margin-top: 4px;
+}
+
+.speed-example {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  font-family: var(--font-thai);
+  margin-top: var(--spacing-md);
+}
+
+.speed-roman,
+.speed-example-meaning,
+.speed-note-text {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.speed-roman {
+  color: var(--orange-700);
+}
+
+.speed-tags {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--spacing-xs);
+  margin-top: var(--spacing-md);
+}
+
+.speed-marks {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--spacing-sm);
+  margin-top: var(--spacing-md);
+}
+
+/* 借 .fsrs-btn 的尺寸和按压缩放，配色和选中态另给，避免读成复习评分 */
+.speed-marks .fsrs-btn {
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+/* 认识=橙调、不认识=棕调，都用半透明底让纸质噪点透出来，和卡片/按钮同一色系 */
+.speed-btn-known {
+  background: rgba(255, 140, 66, 0.12);
+  color: var(--orange-700);
+  border: 1px solid rgba(255, 140, 66, 0.35);
+}
+
+.speed-btn-unknown {
+  background: rgba(92, 64, 51, 0.08);
+  color: var(--brown-700);
+  border: 1px solid rgba(92, 64, 51, 0.22);
+}
+
+/* 选中态只加深底色 + 同色系内描边，不换实心色块 */
+.speed-marks .fsrs-btn[aria-pressed='true'] {
+  background: rgba(255, 140, 66, 0.24);
+  box-shadow: inset 0 0 0 2px rgba(230, 117, 48, 0.75);
+}
+
+.speed-marks .speed-btn-unknown[aria-pressed='true'] {
+  background: rgba(92, 64, 51, 0.18);
+  box-shadow: inset 0 0 0 2px rgba(92, 64, 51, 0.6);
+}
+
+.speed-nav {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--spacing-sm);
+  margin-top: var(--spacing-lg);
+}
+
+.speed-result {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--spacing-xs);
+  margin-top: var(--spacing-md);
+}
+
+.speed-result-value {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.speed-result-label {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+
+@media (max-width: 360px) {
+  .speed-stats {
+    font-size: 0.72rem;
+  }
+}

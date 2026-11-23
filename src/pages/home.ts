@@ -130,6 +130,14 @@ export async function renderHomePage(container: HTMLElement): Promise<void> {
           </div>
           <span style="color:var(--text-muted);">›</span>
         </div>
+        <div class="card" style="padding:12px 14px; margin:0; cursor:pointer; display:flex; align-items:center; gap:12px;" data-nav="/speedbrush">
+          <span class="row-icon-dot"></span>
+          <div style="flex:1;">
+            <div style="font-weight:500; font-size:0.9rem;">单词速刷</div>
+            <div style="font-size:0.75rem; color:var(--text-muted);">整库翻卡，不影响复习排期</div>
+          </div>
+          <span style="color:var(--text-muted);">›</span>
+        </div>
         <div class="card" style="padding:12px 14px; margin:0; cursor:pointer; display:flex; align-items:center; gap:12px;" data-nav="/tone-training">
           <span class="row-icon-dot"></span>
           <div style="flex:1;">

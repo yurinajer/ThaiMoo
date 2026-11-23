@@ -1,4 +1,5 @@
 import { updateActiveNav, initBottomNav } from './components/bottom-nav';
+import { allowLeave } from './lib/route-guard';
 import { renderHomePage } from './pages/home';
 import { renderVocabularyPage } from './pages/vocabulary';
 import { renderReviewPage } from './pages/review';
@@ -12,6 +13,7 @@ import { renderMinimalPairsPage } from './pages/minimal-pairs';
 import { renderGrammarPage } from './pages/grammar';
 import { renderColloquialPage } from './pages/colloquial';
 import { renderReferencePage } from './pages/reference';
+import { renderSpeedbrushPage } from './pages/speedbrush';
 
 type RouteHandler = (container: HTMLElement) => void | Promise<void>;
 
@@ -29,6 +31,7 @@ const routes: Record<string, RouteHandler> = {
   '/grammar': renderGrammarPage,
   '/colloquial': renderColloquialPage,
   '/reference': renderReferencePage,
+  '/speedbrush': renderSpeedbrushPage,
 };
 
 function getRoute(): string {
@@ -36,10 +39,21 @@ function getRoute(): string {
   return hash;
 }
 
+// 守卫问的是「从哪离开」，所以路由自己记住上一次真正渲染出来的路由。
+let lastRoute: string | null = null;
+
 async function navigate(): Promise<void> {
   const route = getRoute();
   const container = document.getElementById('app');
   if (!container) return;
+
+  // 离开确认必须发生在清空容器之前：hash 已经变了，被拒绝时用 replaceState 静默改回，
+  // 既不触发第二次 hashchange，也不额外压一条历史记录。
+  if (lastRoute !== null && route !== lastRoute && !allowLeave(lastRoute, route)) {
+    history.replaceState(null, '', `#${lastRoute}`);
+    return;
+  }
+  lastRoute = route;
 
   const handler = routes[route];
   if (handler) {
