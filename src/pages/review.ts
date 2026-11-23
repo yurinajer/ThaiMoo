@@ -346,9 +346,8 @@ function startReviewSession(container: HTMLElement, items: ReviewItem[], mode: R
             '(复习中跳过)',
             mode === 'thai-to-cn' ? item.word.meaning : item.word.thai
           );
-          // 队列是开始复习时的一次性快照，排到 10 分钟后本轮不会再见到它，
-          // 所以在队尾补一份，这一轮当场再过一遍。
-          items.push({ word: item.word, isNew: false });
+          // 忘记只改排期（10 分钟后到期），本轮不补考：队列是开始复习时的一次性快照，
+          // 想再过一遍就下一轮进来。
         } else {
           correctCount++;
         }

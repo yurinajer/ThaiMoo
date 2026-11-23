@@ -1,8 +1,9 @@
-// 复习队列编排回归测试：导入不预写排期、新词按入库顺序、单轮 50+20 上限、编排只读不写库、今日新词按入库计。
+// 复习队列编排回归测试：导入不预写排期、新词按入库顺序、单轮 50+20 上限、编排只读不写库、今日新词按入库计、忘记只改排期不在本轮补考。
 // 运行：node tests/review-queue.test.mjs
 // 隔离性：只在 node 进程内的 fake-indexeddb（内存实现）里建库，进程退出即消失，
 // 不会接触浏览器里的 ThaiLearnDB、本地学习数据或线上数据。
 import 'fake-indexeddb/auto';
+import { readFileSync } from 'node:fs';
 import { createServer } from 'vite';
 
 const results = [];
@@ -20,6 +21,7 @@ const race = (promise, label, ms = 30000) => Promise.race([
 // 上限冻结在测试里，不跟随生产代码走：改数字必须同时改这里。
 const WANT_DUE_LIMIT = 50;
 const WANT_NEW_LIMIT = 20;
+const MINUTE = 60_000;
 
 async function main() {
   const server = await createServer({
@@ -192,6 +194,54 @@ async function main() {
   }), 'raw add');
   check('绕过 addWord 的直接写库（备份恢复路径）不计今日新词',
     (await newWordsTotal()) === beforeN + 1, `实际 ${await newWordsTotal()}`);
+
+  // ---------- 12. 忘记（10分钟）：只改那一行的排期，本轮不补考 ----------
+  const againId = plan3.due[0].wordId;
+  const reviewsTotal = (rows) => rows.reduce((sum, s) => sum + (s.reviewsDone || 0), 0);
+  const rowsBefore = await race(db.reviewStates.toArray(), 'againRowsBefore');
+  const statsBefore = await race(db.dailyStats.toArray(), 'againStatsBefore');
+  const errBefore = await race(db.errorRecords.count(), 'againErrBefore');
+  const t0 = Date.now();
+  await race(gradeReview(againId, 1), 'grade 忘记');
+  const t1 = Date.now();
+  const rowsAfter = await race(db.reviewStates.toArray(), 'againRowsAfter');
+  const againAfter = rowsAfter.find(s => s.wordId === againId);
+  const againBefore = rowsBefore.find(s => s.wordId === againId);
+
+  check('忘记不新增排期行，只更新命中的那一行',
+    rowsAfter.length === rowsBefore.length && againAfter.reps === againBefore.reps + 1,
+    `行数 ${rowsBefore.length}→${rowsAfter.length}，reps ${againBefore.reps}→${againAfter.reps}`);
+  check('忘记的到期时间落在「现在 + 10 分钟」',
+    againAfter.nextReview >= t0 + 10 * MINUTE && againAfter.nextReview <= t1 + 10 * MINUTE,
+    `实际 ${againAfter.nextReview - t0}ms 后`);
+  check('忘记累加 lapses，档位记为 1', againAfter.lapses === againBefore.lapses + 1 && againAfter.state === 1);
+  check('忘记只累加一次复习数，今日新词不动',
+    reviewsTotal(await race(db.dailyStats.toArray(), 'againStatsAfter')) === reviewsTotal(statsBefore) + 1
+    && (await newWordsTotal()) === beforeN + 1);
+  check('排期层不写错题本（错题是复习页那一步的事）',
+    (await race(db.errorRecords.count(), 'againErrAfter')) === errBefore);
+  check('忘记之后它不在到期名单里（10 分钟还没到）',
+    (await race(getDueReviewStates(), 'dueAfterAgain')).some(s => s.wordId === againId) === false);
+  // 时间快进：把到期戳提前 11 分钟，等价于「这一轮之后又过了 10 分钟」
+  await race(db.reviewStates.update(againId, { nextReview: againAfter.nextReview - 11 * MINUTE }), 'fast-forward');
+  check('10 分钟一过，它不靠本轮补考就自己回到到期名单',
+    (await race(getDueReviewStates(), 'dueFastForward')).some(s => s.wordId === againId) === true);
+  check('它也没有回流成新词（排期行始终在）',
+    (await race(getNewWordsWithoutReview(), 'poolAfterAgain')).includes(againId) === false);
+
+  // ---------- 13. 复习页的会话队列：一次性快照，忘记不再追加考题 ----------
+  const reviewSrc = readFileSync(new URL('../src/pages/review.ts', import.meta.url), 'utf8');
+  check('会话队列没有任何追加写法（items.push/concat/splice 都不该出现）',
+    !/items\.(push|concat|splice|unshift)\(/.test(reviewSrc));
+  check('队列只来自 planReviewSession 的名额',
+    /const plan = await planReviewSession\(\);/.test(reviewSrc)
+    && /\[\.\.\.dueItems, \.\.\.newItems\]/.test(reviewSrc));
+  check('忘记仍然记错词本，且只在 grade === 1 分支里',
+    /if \(grade === 1\) \{[\s\S]{0,400}?await addErrorRecord\(/.test(reviewSrc));
+  check('六档统一走 gradeReview，忘记没有别的排期路径',
+    /await gradeReview\(item\.word\.id!, grade\);/.test(reviewSrc));
+  check('完成页分母是本轮队列长度，不随补考膨胀',
+    /renderSessionComplete\(container, correctCount, items\.length\)/.test(reviewSrc));
 
   return { count: results.length, failed };
 }
