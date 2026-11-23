@@ -26,7 +26,9 @@ export function hasThaiVoice(): boolean {
   return thaiVoice() !== null;
 }
 
-export function speakThai(text: string): { ok: boolean; reason?: string } {
+// onDone 只用于界面反馈（发声结束时灭掉按钮的高亮），不参与朗读本身；
+// 不传就跟以前完全一样，朗读逻辑没有任何变化。
+export function speakThai(text: string, onDone?: () => void): { ok: boolean; reason?: string } {
   if (!isSpeechAvailable()) return { ok: false, reason: '当前浏览器不支持语音合成' };
   if (!text.trim()) return { ok: false, reason: '没有可朗读的内容' };
 
@@ -40,6 +42,10 @@ export function speakThai(text: string): { ok: boolean; reason?: string } {
   utter.lang = voice.lang;
   utter.rate = 0.8;
   utter.pitch = 1;
+  if (onDone) {
+    utter.onend = onDone;
+    utter.onerror = onDone;
+  }
   synth.speak(utter);
   return { ok: true };
 }

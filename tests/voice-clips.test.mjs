@@ -84,7 +84,7 @@ async function main() {
     const b64 = await server.ssrLoadModule('/src/lib/base64.ts');
 
     // ---------- 1. v3 只新增录音表，已有 schema 一字未动 ----------
-    check('Dexie 声明版本升到 3', db.verno === 3, `实际 ${db.verno}`);
+    check('Dexie 声明版本已到 4（v4 只加速刷状态表）', db.verno === 4, `实际 ${db.verno}`);
     check('录音表已声明', !!db.voiceClips, `实际 ${json(Object.keys(db.tables))}`);
     check('录音表索引为 ++id, wordId, createdAt',
       json([keyOf(db.voiceClips), indexesOf(db.voiceClips)]) === json(['++id', ['createdAt', 'wordId']]),
@@ -109,7 +109,7 @@ async function main() {
       legacy.close();
 
       const upgraded = new ThaiLearnDB(V2_LEGACY_DB);
-      check('老库打开后升到 3', upgraded.verno === 3, `实际 ${upgraded.verno}`);
+      check('老库打开后一路升到 4', upgraded.verno === 4, `实际 ${upgraded.verno}`);
       check('升级新增的录音表是空的', (await upgraded.voiceClips.count()) === 0, `实际 ${await upgraded.voiceClips.count()}`);
       check('升级不改动单词记录', json(await upgraded.words.toArray()) === json(legacyWords), `实际 ${json(await upgraded.words.toArray())}`);
       check('升级不改动复习进度', json(await upgraded.reviewStates.toArray()) === json(legacyStates), `实际 ${json(await upgraded.reviewStates.toArray())}`);

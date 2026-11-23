@@ -57,7 +57,8 @@ async function main() {
   // ---------- 1. 上限就是需求里说定的两个数 ----------
   check('单轮到期上限 = 50', SESSION_DUE_LIMIT === WANT_DUE_LIMIT, `实际 ${SESSION_DUE_LIMIT}`);
   check('单轮新词上限 = 20', SESSION_NEW_LIMIT === WANT_NEW_LIMIT, `实际 ${SESSION_NEW_LIMIT}`);
-  check('Dexie 版本仍是 3（队列编排不动 schema）', db.verno === 3, `实际 ${db.verno}`);
+  // v4 只加了一张和复习无关的速刷状态表：队列编排本身没有动过排期表结构。
+  check('Dexie 版本为 4（v4 只加速刷状态表，排期表结构未动）', db.verno === 4, `实际 ${db.verno}`);
 
   // ---------- 2. 导入只入词库，不再当场排期 ----------
   const day1 = await race(importWords(mk(30, 'D1')), 'import day1');

@@ -6,6 +6,7 @@ import { showImportModal } from './vocabulary';
 import { getStubbornCount } from '../db/errors';
 import { getSetting, setSetting, db, normalizeStubbornMastered } from '../db/index';
 import { encodeClipsForBackup, decodeClipsForRestore } from '../db/voiceClips';
+import { sanitizeSpeedStatusesForRestore } from '../db/speedStatus';
 import { showSuccess, showError } from '../components/toast';
 
 export async function renderMorePage(container: HTMLElement): Promise<void> {
@@ -211,6 +212,8 @@ export async function renderMorePage(container: HTMLElement): Promise<void> {
       settings: await db.settings.toArray(),
       // Blob 进不了 JSON，这里转 base64；恢复侧对应 decodeClipsForRestore。
       voiceClips: await encodeClipsForBackup(),
+      // 速刷的长期认识状态：纯 JSON 字段，直接整表导出，恢复侧对应 sanitizeSpeedStatusesForRestore。
+      speedStatuses: await db.speedStatuses.toArray(),
     };
     const json = JSON.stringify(data, null, 2);
     const blob = new Blob([json], { type: 'application/json' });
@@ -238,9 +241,18 @@ export async function renderMorePage(container: HTMLElement): Promise<void> {
           return;
         }
         const clips = decodeClipsForRestore(data.voiceClips);
-        const clipNote = clips.length > 0 ? `，以及 ${clips.length} 条跟读录音` : '';
-        if (!confirm(`将恢复 ${data.words.length} 个单词和所有学习数据${clipNote}。当前数据将被覆盖，确定继续？`)) return;
-        await db.transaction('rw', [db.words, db.reviewStates, db.errorRecords, db.stubbornWords, db.dailyStats, db.grammarPoints, db.colloquialNotes, db.minimalPairGroups, db.referenceWords, db.settings, db.voiceClips], async () => {
+        // 速刷状态按 wordId 存，所以过滤用的 id 集合取自这份备份自己的单词表：
+        // 老备份没有这个字段就是空数组，指向已删词或格式异常的记录在 sanitize 里被丢掉。
+        const validWordIds = new Set<number>((data.words as { id?: number }[])
+          .filter(word => typeof word?.id === 'number')
+          .map(word => word.id as number));
+        const statuses = sanitizeSpeedStatusesForRestore(data.speedStatuses, validWordIds);
+        const skipped = (Array.isArray(data.speedStatuses) ? data.speedStatuses.length : 0) - statuses.length;
+        const statusNote = statuses.length > 0
+          ? `，以及 ${statuses.length} 条速刷认识状态${skipped > 0 ? `（跳过 ${skipped} 条无效记录）` : ''}`
+          : '';
+        if (!confirm(`将恢复 ${data.words.length} 个单词和所有学习数据${statusNote}。当前数据将被覆盖，确定继续？`)) return;
+        await db.transaction('rw', [db.words, db.reviewStates, db.errorRecords, db.stubbornWords, db.dailyStats, db.grammarPoints, db.colloquialNotes, db.minimalPairGroups, db.referenceWords, db.settings, db.voiceClips, db.speedStatuses], async () => {
           await db.words.clear();
           await db.reviewStates.clear();
           await db.errorRecords.clear();
@@ -262,10 +274,14 @@ export async function renderMorePage(container: HTMLElement): Promise<void> {
           if (data.referenceWords?.length) await db.referenceWords.bulkAdd(data.referenceWords);
           if (data.settings?.length) await db.settings.bulkAdd(data.settings);
           // 老备份没这个字段就完全不碰录音表；带录音时按 id 覆盖而不整表清空，
-          // 免得恢复旧备份把之后新录的片段一起清掉。
+          // 免得恢复旧备份把之后新录的片段一起清掉。跟读界面已下线，这里只保数据不外露。
           if (clips.length) await db.voiceClips.bulkPut(clips);
+          // 速刷状态同样按主键（wordId）覆盖，不整表清空：这套判定独立于排期，
+          // 恢复流程里除它自己的表以外一个字段都不该动。
+          if (statuses.length) await db.speedStatuses.bulkPut(statuses);
         });
-        showSuccess(clips.length > 0 ? '数据恢复成功（含跟读录音）' : '数据恢复成功');
+        const restoredNotes = statuses.length > 0 ? ['速刷状态'] : [];
+        showSuccess(restoredNotes.length > 0 ? `数据恢复成功（含${restoredNotes.join('与')}）` : '数据恢复成功');
         setTimeout(() => window.location.reload(), 1000);
       } catch (e) {
         showError('恢复失败：文件格式错误');

@@ -60,7 +60,8 @@ async function main() {
     (await db.dailyStats.toArray()).reduce((sum, s) => sum + (s.newWords || 0), 0);
 
   // ---------- 1. 没动数据库结构 ----------
-  check('Dexie 版本仍是 3（换算法不升 schema）', db.verno === 3, `实际 ${db.verno}`);
+  // v4 只加了一张和复习无关的速刷状态表：换算法本身没有动过排期表结构。
+  check('Dexie 版本为 4（v4 只加速刷状态表，排期表结构未动）', db.verno === 4, `实际 ${db.verno}`);
   check('reviewStates 主键仍是 wordId', keyOf(db.reviewStates) === 'wordId', `实际 ${keyOf(db.reviewStates)}`);
   check('reviewStates 索引仍是 nextReview, state',
     json(indexesOf(db.reviewStates)) === json(['nextReview', 'state']),

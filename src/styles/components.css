@@ -455,53 +455,60 @@
   accent-color: var(--orange-400);
 }
 
-/* 跟读录音条（单词详情 / 复习卡片共用） */
-.audio-bar {
-  margin: 12px 0;
-  padding: 12px;
-  background: var(--orange-50);
+/* 复习卡的朗读小喇叭：44×44 的轻图标按钮，摆哪儿由父容器决定 */
+.card-speak {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
   border: 1px solid var(--orange-200);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-full);
+  background: rgba(255, 255, 255, 0.72);
+  color: var(--tone-dark-coffee);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: background var(--transition-fast), color var(--transition-fast),
+    border-color var(--transition-fast), transform var(--transition-fast);
 }
 
-.audio-bar-actions {
+.card-speak:active {
+  transform: scale(0.94);
+}
+
+/* 发声中只换配色不做动画：描边和图标转橙，一眼看得出正在读 */
+.card-speak.speaking {
+  background: var(--orange-100);
+  border-color: var(--orange-400);
+  color: var(--orange-700);
+}
+
+/* 翻卡：喇叭钉在卡片内部的右上角。它是 .flashcard-inner 的兄弟节点，
+   不参与 3D 翻转，所以正面背面都点得到；卡面顶部让出 60px，
+   免得长词条换行后被图标压住。 */
+.flashcard {
+  position: relative;
+}
+
+.flashcard .card-speak {
+  position: absolute;
+  top: var(--spacing-sm);
+  right: var(--spacing-sm);
+  z-index: 2;
+}
+
+.review-card .flashcard-front,
+.review-card .flashcard-back {
+  padding-top: 60px;
+}
+
+/* 默写页的喇叭跟「正确答案」标题同一行，靠右对齐 */
+.dictation-reveal-top {
   display: flex;
   align-items: center;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.audio-bar-status {
-  font-size: 0.8rem;
-  color: var(--text-muted);
-  font-variant-numeric: tabular-nums;
-}
-
-.audio-bar-clips {
-  display: flex;
-  flex-direction: column;
-}
-
-.clip-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-top: 8px;
-}
-
-.clip-meta {
-  flex: 1;
-  min-width: 0;
-  font-size: 0.75rem;
-  color: var(--text-muted);
-  font-variant-numeric: tabular-nums;
-}
-
-.audio-bar-empty {
-  font-size: 0.75rem;
-  color: var(--text-muted);
-  line-height: 1.6;
-  margin: 0;
+  justify-content: space-between;
+  gap: var(--spacing-sm);
 }
 
 /* Floating action button */
@@ -1087,10 +1094,13 @@
   color: var(--orange-700);
 }
 
-.detail-speak {
+.detail-head-main {
+  min-width: 0;
+}
+
+/* 抽屉没有翻卡热区，喇叭按 flex 排在词头右上角，长词条靠 min-width:0 自行换行 */
+.detail-head .card-speak {
   flex-shrink: 0;
-  min-width: 76px;
-  min-height: 44px;
 }
 
 .detail-row {
@@ -1618,6 +1628,10 @@
 .flashcard.speed-card .flashcard-back {
   position: relative;
   grid-area: 1 / 1;
+  /* 右上角的朗读喇叭钉在卡盒上（.flashcard 已经是定位容器），
+     两面都按复习卡同款让出 60px 顶部，长词条换行也压不到图标；
+     中→泰 的喇叭在答案露出前只是隐藏，避让留着不收回，翻面时版面不跳。 */
+  padding-top: 60px;
 }
 
 .speed-progress-text {
@@ -1714,6 +1728,14 @@
 .speed-marks .speed-btn-unknown[aria-pressed='true'] {
   background: rgba(92, 64, 51, 0.18);
   box-shadow: inset 0 0 0 2px rgba(92, 64, 51, 0.6);
+}
+
+/* 长期状态回显：比按钮弱一档的说明文字，避免读成新一轮的计数 */
+.speed-saved {
+  margin: var(--spacing-sm) 0 0;
+  text-align: center;
+  font-size: 0.78rem;
+  color: var(--text-muted);
 }
 
 .speed-nav {

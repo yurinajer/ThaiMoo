@@ -6,7 +6,7 @@ import {
 } from '../db/review';
 import { getWord, type Word } from '../db/vocabulary';
 import { addErrorRecord } from '../db/errors';
-import { mountAudioBar, type AudioBarHandle } from '../components/audio-bar';
+import { bindSpeakButton, speakButtonHtml } from '../components/card-speak';
 import { showSuccess } from '../components/toast';
 import type { ReviewState } from '../db/index';
 
@@ -25,25 +25,6 @@ const GRADE_BTN_CLASS: Record<ReviewGrade, string> = {
 interface ReviewItem {
   word: Word;
   isNew: boolean;
-}
-
-// 复习是一页一题地重绘容器，切题和跳出页面都不会触发组件自己的清理，
-// 所以正在录的麦克风和正在放音频要由这里统一收掉。
-let reviewBar: AudioBarHandle | null = null;
-let cleanupBound = false;
-
-function bindReviewCleanup(): void {
-  if (cleanupBound) return;
-  cleanupBound = true;
-  window.addEventListener('hashchange', () => {
-    reviewBar?.destroy();
-    reviewBar = null;
-  });
-}
-
-function destroyReviewBar(): void {
-  reviewBar?.destroy();
-  reviewBar = null;
 }
 
 export async function renderReviewPage(container: HTMLElement): Promise<void> {
@@ -221,14 +202,11 @@ async function buildReviewQueue(): Promise<ReviewItem[]> {
 }
 
 function startReviewSession(container: HTMLElement, items: ReviewItem[], mode: ReviewMode): void {
-  bindReviewCleanup();
   let currentIndex = 0;
   let correctCount = 0;
   let isFlipped = false;
 
   function renderCurrentItem(): void {
-    destroyReviewBar();
-
     if (currentIndex >= items.length) {
       renderSessionComplete(container, correctCount, items.length);
       return;
@@ -264,7 +242,7 @@ function startReviewSession(container: HTMLElement, items: ReviewItem[], mode: R
     const toneTags = toneTagsHtml(item.word.toneMark);
 
     if (mode === 'thai-to-cn') {
-      card.className = 'flashcard';
+      card.className = 'flashcard review-card';
       card.id = 'flashcard';
       card.innerHTML = `
         <div class="flashcard-inner">
@@ -284,6 +262,7 @@ function startReviewSession(container: HTMLElement, items: ReviewItem[], mode: R
             <div class="flashcard-hint">点击返回泰文</div>
           </div>
         </div>
+        ${speakButtonHtml()}
       `;
     } else {
       card.className = 'dictation-card';
@@ -293,13 +272,9 @@ function startReviewSession(container: HTMLElement, items: ReviewItem[], mode: R
 
     content.appendChild(card);
 
-    // 泰→中 的卡面本来就写着泰文，朗读和跟读录音可以直接放出来；
-    // 中→泰 默写要等提交后才挂，否则一听读音就等于给了答案。
-    const audioHost = createElement('div', { className: 'review-audio' });
-    content.appendChild(audioHost);
-    if (mode === 'thai-to-cn') {
-      reviewBar = mountAudioBar(audioHost, item.word.id!, item.word.thai, { speak: true });
-    }
+    // 泰→中 的卡面本来就写着泰文，朗读喇叭直接长在卡片里；
+    // 中→泰 默写的喇叭要等提交后随正确答案一起出现，否则一听读音就等于给了答案。
+    if (mode === 'thai-to-cn') bindSpeakButton(card, item.word.thai);
 
     const fsrsButtons = createElement('div', { className: 'fsrs-buttons', style: 'display:none;', id: 'fsrs-buttons' });
     fsrsButtons.innerHTML = GRADE_TABLE.map(spec => `
@@ -340,7 +315,7 @@ function startReviewSession(container: HTMLElement, items: ReviewItem[], mode: R
         reveal.innerHTML = dictationRevealHtml(item.word);
         reveal.style.display = 'block';
         document.getElementById('fsrs-buttons')!.style.display = 'grid';
-        if (!reviewBar) reviewBar = mountAudioBar(audioHost, item.word.id!, item.word.thai, { speak: true });
+        bindSpeakButton(reveal, item.word.thai);
       };
 
       submitBtn.addEventListener('click', submitAnswer);
@@ -406,7 +381,10 @@ export function dictationCardHtml(word: Word): string {
 export function dictationRevealHtml(word: Word): string {
   const toneTags = toneTagsHtml(word.toneMark);
   return `
-    <div class="dictation-reveal-label">正确答案</div>
+    <div class="dictation-reveal-top">
+      <div class="dictation-reveal-label">正确答案</div>
+      ${speakButtonHtml()}
+    </div>
     <div class="thai-text-lg" style="font-weight:500;">${escapeHtml(word.thai)}</div>
     ${(word.romanization ?? '').trim() ? `<div class="card-roman">${escapeHtml(word.romanization!.trim())}</div>` : ''}
     ${toneTags ? `<div style="margin-top:8px;">${toneTags}</div>` : ''}

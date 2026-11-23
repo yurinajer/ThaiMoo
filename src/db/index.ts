@@ -109,6 +109,14 @@ export interface VoiceClip {
   createdAt: number;
 }
 
+// 单词速刷的长期状态。主键直接是词的 id（不是 ++id），所以一个词天然只有一行，
+// 重复判定走 put 覆盖；和 reviewStates 完全平行，不含任何排期字段。
+export interface SpeedStatus {
+  wordId: number;
+  status: 'known' | 'unknown';
+  updatedAt: number;
+}
+
 export interface ReferenceWord {
   id?: number;
   thai: string;
@@ -130,6 +138,7 @@ export class ThaiLearnDB extends Dexie {
   settings!: Table<Setting>;
   referenceWords!: Table<ReferenceWord>;
   voiceClips!: Table<VoiceClip>;
+  speedStatuses!: Table<SpeedStatus>;
 
   constructor(name = 'ThaiLearnDB') {
     super(name);
@@ -160,6 +169,11 @@ export class ThaiLearnDB extends Dexie {
     // v3 只声明一张新表：现有 10 张表的索引定义原样继承，不写 upgrade 就不动任何历史数据。
     this.version(3).stores({
       voiceClips: '++id, wordId, createdAt',
+    });
+    // v4 同理：只加速刷状态表，status 建索引用于「不认识/未练习」计数，
+    // updatedAt 只作记录字段不参与查询。不写 upgrade，老数据一律原样保留。
+    this.version(4).stores({
+      speedStatuses: 'wordId, status',
     });
   }
 }

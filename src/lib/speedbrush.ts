@@ -1,12 +1,15 @@
-import type { Word } from '../db/index';
+import type { SpeedStatus, Word } from '../db/index';
 import { shuffleArray } from './utils';
 
 export type SpeedDirection = 'thai-to-cn' | 'cn-to-thai';
 export type SpeedOrder = 'original' | 'random';
-export type SpeedMark = 'known' | 'unknown';
+// 速刷状态的取值直接以表定义为准，页面、会话、库里是同一套字面量，不存在第二份真相。
+export type SpeedMark = SpeedStatus['status'];
+export type SpeedScope = 'all' | 'unknown' | 'unpracticed';
 
 export interface SpeedSettings {
   category: string;
+  scope: SpeedScope;
   direction: SpeedDirection;
   order: SpeedOrder;
   autoAdvance: boolean;
@@ -17,10 +20,27 @@ export const ALL_CATEGORIES = '';
 
 export const DEFAULT_SETTINGS: SpeedSettings = {
   category: ALL_CATEGORIES,
+  scope: 'all',
   direction: 'thai-to-cn',
   order: 'original',
   autoAdvance: true,
 };
+
+// 练习范围的标签文案；计数由 buildScopeOptions 按当前筛选实时算出。
+export const SCOPE_OPTIONS: { scope: SpeedScope; label: string }[] = [
+  { scope: 'all', label: '全部单词' },
+  { scope: 'unknown', label: '不认识' },
+  { scope: 'unpracticed', label: '未练习' },
+];
+
+// 长期保存的速刷状态，按词 id 索引。缺项就是「未练习」，不额外存一份 null。
+export type SpeedStatusMap = Map<number, SpeedMark>;
+
+export interface SpeedScopeOption {
+  scope: SpeedScope;
+  label: string;
+  count: number;
+}
 
 export interface SpeedSession {
   settings: SpeedSettings;
@@ -70,6 +90,31 @@ export function buildCategoryOptions(words: Word[]): SpeedCategory[] {
 export function filterByCategory(words: Word[], category: string): Word[] {
   if (category === ALL_CATEGORIES) return [...words];
   return words.filter(word => (word.tags ?? []).some(tag => tag.trim() === category));
+}
+
+// 练习范围只看长期状态表里的判定，跟 FSRS 的复习日期、掌握状态没有任何关系：
+// 「不认识」= 最新一次判的是不认识（可以反复刷到改判认识），
+// 「未练习」= 状态表里完全没有这个词。
+export function filterByScope(words: Word[], scope: SpeedScope, statuses: SpeedStatusMap): Word[] {
+  if (scope === 'unknown') return words.filter(word => statuses.get(cardKey(word)) === 'unknown');
+  if (scope === 'unpracticed') return words.filter(word => !statuses.has(cardKey(word)));
+  return [...words];
+}
+
+// 计数在同一个词表上一次性算完，三个范围加起来才对得上：全部 = 不认识 + 已判认识 + 未练习。
+export function buildScopeOptions(words: Word[], statuses: SpeedStatusMap): SpeedScopeOption[] {
+  let unknown = 0;
+  let unpracticed = 0;
+  for (const word of words) {
+    const saved = statuses.get(cardKey(word));
+    if (!saved) unpracticed++;
+    else if (saved === 'unknown') unknown++;
+  }
+  return SCOPE_OPTIONS.map(option => ({
+    scope: option.scope,
+    label: option.label,
+    count: option.scope === 'all' ? words.length : option.scope === 'unknown' ? unknown : unpracticed,
+  }));
 }
 
 // 序列只在开始时生成一次，切卡不再重排，随机才不会重复也不会漏词。

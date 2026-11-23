@@ -1,4 +1,5 @@
-// 中译泰默写回归测试：提交门槛、提交前不泄露答案、提交后展示正确答案与转义。
+// 中译泰默写回归测试：提交门槛、提交前不泄露答案、提交后展示正确答案与转义；
+// 外加朗读小喇叭的回归（跟读入口已删除、录音数据层保留、喇叭不翻卡、热区与避让）。
 // 运行：node tests/review-dictation.test.mjs
 // 隔离性：只在 node 进程内的 fake-indexeddb（内存实现）里加载模块，进程退出即消失，
 // 不会接触浏览器里的 ThaiLearnDB、本地学习数据或线上数据。
@@ -118,6 +119,79 @@ check('任意非空文本都允许提交（不自动判拼写）', canSubmitDict
   check('词性中的 script 被转义', !cardHtml.includes('<script>'));
   check('泰文答案中的标签被转义', !revealHtml.includes('<img src=x'));
   check('例句中的 iframe 被转义', !revealHtml.includes('<iframe>'));
+}
+
+// ---------- 6. 朗读小喇叭：跟读入口删除，朗读本身保持原样 ----------
+{
+  const { readFileSync, existsSync } = await import('node:fs');
+  const src = rel => readFileSync(new URL(`../src/${rel}`, import.meta.url), 'utf8');
+  const css = src('styles/components.css');
+  const reviewSrc = src('pages/review.ts');
+  const detailSrc = src('components/word-detail.ts');
+  const speakSrc = src('components/card-speak.ts');
+  const speedSrc = src('pages/speedbrush.ts');
+  const moreSrc = src('pages/more.ts');
+
+  const hasFile = rel => existsSync(new URL(`../src/${rel}`, import.meta.url));
+
+  // 跟读：入口和只服务于它的代码都没了
+  check('跟读录音组件文件已删除', !hasFile('components/audio-bar.ts'));
+  check('麦克风录音模块文件已删除', !hasFile('lib/recorder.ts'));
+  check('复习页不再引用录音组件', !/audio-bar|mountAudioBar|recorder/i.test(reviewSrc));
+  check('单词详情抽屉不再引用录音组件', !/audio-bar|mountAudioBar|recorder/i.test(detailSrc));
+  check('两处界面文案里不再出现「跟读」', !reviewSrc.includes('跟读') && !detailSrc.includes('跟读'));
+  check('朗读按钮文案不再出现在卡片里（只剩图标）', !reviewSrc.includes('>朗读<') && !reviewSrc.includes('ab-speak'));
+
+  // 但录音数据层不能跟着删：表、备份、级联清理都保持原样
+  check('voiceClips 数据层文件保留', hasFile('db/voiceClips.ts'));
+  check('备份仍导出并恢复历史录音', /encodeClipsForBackup\(\)/.test(moreSrc) && /decodeClipsForRestore\(/.test(moreSrc));
+  check('删词仍级联清理录音', /db\.voiceClips\.where\('wordId'\)/.test(src('db/vocabulary.ts')));
+
+  // 朗读：仍是原先的 Web Speech 实现，只是换了触发方式
+  check('喇叭组件继续用 lib/speech 的 speakThai', /from '..\/lib\/speech'/.test(speakSrc) && /speakThai\(thai,/.test(speakSrc));
+  check('语音实现没有重写（仍是泰语 voice + rate 0.8）',
+    /new SpeechSynthesisUtterance\(text\)/.test(src('lib/speech.ts')) && /utter\.rate = 0\.8/.test(src('lib/speech.ts')));
+  check('复习页与详情抽屉共用同一个喇叭组件',
+    /from '..\/components\/card-speak'/.test(reviewSrc) && /from '.\/card-speak'/.test(detailSrc));
+  check('详情抽屉改用同款图标并绑定当前词条',
+    /speakButtonHtml\(\)/.test(detailSrc) && /bindSpeakButton\(overlay, word\.thai\)/.test(detailSrc));
+  check('详情抽屉不再有文字朗读按钮',
+    !/btn-speak|detail-speak/.test(detailSrc) && !/🔊/.test(detailSrc) && !/>朗读</.test(detailSrc));
+  // 速刷页的喇叭是后来单独裁定的功能：复用同一个组件，不另写一套语音。
+  check('速刷页复用同一个喇叭组件',
+    /from '..\/components\/card-speak'/.test(speedSrc)
+    && /speakButtonHtml\(\)/.test(speedSrc) && /bindSpeakButton\(/.test(speedSrc));
+  check('速刷卡的喇叭钉在卡盒右上角、顶部同样避让 60px',
+    /\.flashcard \.card-speak \{[^}]*position: absolute/.test(css)
+    && /\.flashcard\.speed-card \.flashcard-front,\s*\.flashcard\.speed-card \.flashcard-back \{[^}]*padding-top: 60px;/.test(css));
+
+  // 触发方式：点图标只朗读，不翻卡
+  check('喇叭点击先拦掉冒泡，不会翻卡', /e\.stopPropagation\(\)/.test(speakSrc));
+  check('朗读失败只提示，不改卡片状态', /showError\(result\.reason \|\| '朗读失败'\)/.test(speakSrc));
+  check('喇叭标记为可访问按钮',
+    /<button class="card-speak" type="button" aria-label="朗读该单词">/.test(dictationRevealHtml(word)));
+  check('喇叭图标是内联 SVG，不用 emoji', /<svg[^>]*aria-hidden="true"/.test(speakSrc) && !/🔊/.test(reviewSrc) && !/🔊/.test(detailSrc));
+
+  // 默写模式：提交前不给读音，提交后喇叭跟答案一起出现
+  check('提交前的默写卡片没有喇叭', !dictationCardHtml(word).includes('card-speak'));
+  check('提交后的答案区有喇叭', dictationRevealHtml(word).includes('card-speak'));
+  check('默写提交后才绑定喇叭', /bindSpeakButton\(reveal, item\.word\.thai\)/.test(reviewSrc));
+
+  // 布局：按钮在卡片内部右侧，不是屏幕悬浮；热区够大且不压内容
+  check('喇叭热区至少 44×44', /\.card-speak \{\s*display: inline-flex;[\s\S]*?width: 44px;\s*height: 44px;/.test(css));
+  check('喇叭在卡片内部右上角', /\.flashcard \.card-speak \{[^}]*position: absolute;[^}]*right: var\(--spacing-sm\)/.test(css));
+  check('卡片本身是定位容器', /\.flashcard \{\s*position: relative;\s*\}/.test(css));
+  check('喇叭不使用屏幕固定悬浮', !/\.card-speak \{[^}]*position: (fixed|sticky)/.test(css) && !/position: fixed[^}]*card-speak/.test(css));
+  check('卡面顶部避让，词条不被图标压住',
+    /\.review-card \.flashcard-front,\s*\.review-card \.flashcard-back \{\s*padding-top: 60px;\s*\}/.test(css));
+  check('抽屉里的喇叭靠词头右上，长词换行不顶掉按钮',
+    /\.detail-head \.card-speak \{[^}]*flex-shrink: 0/.test(css) && /\.detail-head-main \{\s*min-width: 0;\s*\}/.test(css));
+  check('播放中有轻微状态反馈', /\.card-speak\.speaking \{/.test(css) && /classList\.add\('speaking'\)/.test(speakSrc) && /classList\.remove\('speaking'\)/.test(speakSrc));
+  check('旧录音条样式已清理', !/\.audio-bar\b/.test(css) && !/\.clip-row\b/.test(css) && !/\.detail-speak\b/.test(css));
+  check('恢复流程的文案不再提录音', !/跟读录音/.test(moreSrc) && !/clipNote/.test(moreSrc));
+
+  // 复习页不因为这次改动多出任何写库路径
+  check('朗读路径不碰数据库', !/\bdb\./.test(reviewSrc) && !/voiceClips|speedStatuses|reviewStates/.test(reviewSrc));
 }
 
 // ---------- 汇总 ----------

@@ -33,11 +33,13 @@ export async function deleteWords(ids: number[]): Promise<number> {
 
   await db.transaction(
     'rw',
-    [db.words, db.reviewStates, db.errorRecords, db.stubbornWords, db.minimalPairGroups, db.voiceClips],
+    [db.words, db.reviewStates, db.errorRecords, db.stubbornWords, db.minimalPairGroups, db.voiceClips, db.speedStatuses],
     async () => {
       await db.words.bulkDelete(ids);
       await db.reviewStates.bulkDelete(ids);
       await db.stubbornWords.bulkDelete(ids);
+      // 速刷状态主键也是 wordId，词没了留着就是孤儿行，按同一个 id 直接收掉。
+      await db.speedStatuses.bulkDelete(ids);
       await db.errorRecords.where('wordId').anyOf(ids).delete();
       await db.voiceClips.where('wordId').anyOf(ids).delete();
       // 对比组的 wordIds 是普通数组字段、没有索引，只能整表过一遍再回写。
