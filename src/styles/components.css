@@ -503,14 +503,6 @@
   padding-top: 60px;
 }
 
-/* 默写页的喇叭跟「正确答案」标题同一行，靠右对齐 */
-.dictation-reveal-top {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--spacing-sm);
-}
-
 /* Floating action button */
 .fab {
   position: fixed;
@@ -681,6 +673,11 @@
   grid-area: 1 / 1;
 }
 
+/* 泰文整词没有空格，长词在卡面里必须按字符折行，否则会顶穿卡盒 */
+.flashcard.review-card .thai-text-lg {
+  overflow-wrap: anywhere;
+}
+
 .flashcard-hint {
   font-size: 0.8rem;
   color: var(--text-muted);
@@ -780,17 +777,9 @@
   color: var(--text-muted);
 }
 
-/* 中译泰默写卡片 */
-.dictation-card {
-  background: var(--bg-card);
-  border: 2px solid var(--border-light);
-  border-radius: var(--radius-xl);
-  box-shadow: var(--shadow-md);
-  padding: var(--spacing-xl);
-  margin: var(--spacing-lg) 0;
-  text-align: center;
-}
-
+/* 中译泰：和泰→中 用同一副翻卡，正面中文题干 + 可选默写，背面泰文答案与详情。
+   卡片外观（圆角、边框、阴影、顶部避让喇叭）全部由 .flashcard.review-card 提供，
+   这里只排版默写自己的控件。 */
 .dictation-meaning {
   font-size: 1.3rem;
   font-weight: 600;
@@ -804,19 +793,36 @@
   margin-top: 4px;
 }
 
+.dictation-tools {
+  margin-top: var(--spacing-lg);
+}
+
+/* 面板收起时靠 hidden 彻底消失，不能只靠高度，否则点空白处还是会翻卡 */
+#dictation-panel[hidden] {
+  display: none;
+}
+
+.dictation-panel {
+  width: 100%;
+}
+
+.dictation-input {
+  margin-top: var(--spacing-md);
+  font-family: var(--font-thai);
+  font-size: 1.25rem;
+  text-align: center;
+  min-height: 52px;
+}
+
+.dictation-submit {
+  margin-top: var(--spacing-md);
+}
+
 .dictation-user-label {
   font-size: 0.75rem;
   color: var(--text-muted);
   text-align: left;
   margin-top: var(--spacing-lg);
-}
-
-.dictation-input {
-  margin-top: var(--spacing-lg);
-  font-family: var(--font-thai);
-  font-size: 1.25rem;
-  text-align: center;
-  min-height: 52px;
 }
 
 .dictation-user-answer {
@@ -835,27 +841,12 @@
   overflow-wrap: anywhere;
 }
 
-.dictation-submit {
-  margin-top: var(--spacing-md);
-}
-
-.dictation-reveal {
-  margin-top: var(--spacing-lg);
-  padding: var(--spacing-lg);
-  border-radius: var(--radius-lg);
-  background: linear-gradient(135deg, var(--orange-100), var(--orange-200));
-  border: 2px solid var(--orange-300);
-}
-
-.dictation-reveal-label {
+.dictation-answer-label {
   font-size: 0.75rem;
   font-weight: 600;
   color: var(--orange-700);
+  margin-top: var(--spacing-lg);
   margin-bottom: 4px;
-}
-
-.dictation-reveal .thai-text-lg {
-  overflow-wrap: anywhere;
 }
 
 .dictation-hint {
@@ -1653,6 +1644,58 @@
   font-size: 0.85rem;
   color: var(--text-secondary);
   font-variant-numeric: tabular-nums;
+}
+
+/* 设置页只留一个可折叠的「速刷规则」框（沿用词库页 .csv-spec 的折叠框样式）：
+   进度和规则说明是同一件事的两段，标题行放进度，展开后才给口径说明。 */
+.speed-rules-text {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  line-height: 1.6;
+}
+
+/* 「上次刷到哪」：位置、筛选、统计口径三件事一次说清，
+   让用户在点按钮之前就看清继续的是哪一串。 */
+.speed-resume {
+  border-left: 3px solid var(--orange-400);
+  padding-left: 12px;
+  margin-bottom: var(--spacing-md);
+}
+
+.speed-resume-meta {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  margin-top: 4px;
+}
+
+.speed-resume-note {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  line-height: 1.6;
+  margin-top: var(--spacing-sm);
+}
+
+.speed-resume.stale {
+  border-left-color: var(--border-light);
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  line-height: 1.6;
+}
+
+/* 顶栏是橙色渐变，实心按钮太抢眼，这里用同色系的半透明描边按钮。 */
+.page-header .speed-restart {
+  flex-shrink: 0;
+  padding: 4px 10px;
+  font-size: 0.75rem;
+  background: rgba(255, 255, 255, 0.18);
+  border: 1px solid rgba(255, 255, 255, 0.55);
+  border-radius: var(--radius-md);
+  color: var(--text-inverse);
+  cursor: pointer;
+}
+
+.page-header .speed-restart:active {
+  background: rgba(255, 255, 255, 0.3);
 }
 
 .speed-stats {

@@ -115,7 +115,7 @@ async function main() {
     optimizeDeps: { noDiscovery: true, include: [] },
   });
 
-  let db, ThaiLearnDB, sb, vocab, review, errors, speedStatus;
+  let db, ThaiLearnDB, sb, vocab, review, errors, speedStatus, speedProgress;
   try {
     ({ db, ThaiLearnDB } = await server.ssrLoadModule('/src/db/index.ts'));
     sb = await server.ssrLoadModule('/src/lib/speedbrush.ts');
@@ -123,6 +123,7 @@ async function main() {
     review = await server.ssrLoadModule('/src/db/review.ts');
     errors = await server.ssrLoadModule('/src/db/errors.ts');
     speedStatus = await server.ssrLoadModule('/src/db/speedStatus.ts');
+    speedProgress = await server.ssrLoadModule('/src/lib/speedProgress.ts');
   } finally {
     await server.close();
   }
@@ -132,19 +133,22 @@ async function main() {
     createSession, currentCard, filterByCategory, filterByScope, isFirstCard, isLastCard,
     positionOf, revealCard, goNext, goPrev, canMark, setMark, markOf, unknownCards, statsOf,
     frontText, answerText, restartSession, reshuffleSession, keepUnknownOnly, cardKey,
+    isSameSequence, restoreSession,
   } = sb;
+  const { loadSpeedProgress, saveSpeedProgress, clearSpeedProgress } = speedProgress;
 
   // ---------- 1. 依赖与源码守卫：速刷根本没有拿到写库的手 ----------
   const libSrc = readSrc('src/lib/speedbrush.ts');
   const pageSrc = readSrc('src/pages/speedbrush.ts');
   const statusSrc = readSrc('src/db/speedStatus.ts');
+  const progressSrc = readSrc('src/lib/speedProgress.ts');
   check('逻辑层只依赖 db 类型与 utils',
     json(importSpecs(libSrc)) === json(['../db/index', './utils']),
     `实际 ${json(importSpecs(libSrc))}`);
   check('逻辑层的词库引用是 import type（编译后即消失）',
     /import type \{ SpeedStatus, Word \} from '\.\.\/db\/index'/.test(libSrc));
   check('页面层依赖全在白名单内',
-    json(importSpecs(pageSrc)) === json(['../lib/utils', '../db/vocabulary', '../db/speedStatus', '../lib/route-guard', '../components/card-speak', '../lib/speedbrush']),
+    json(importSpecs(pageSrc)) === json(['../lib/utils', '../db/vocabulary', '../db/speedStatus', '../lib/route-guard', '../components/card-speak', '../lib/speedProgress', '../lib/speedbrush']),
     `实际 ${json(importSpecs(pageSrc))}`);
   // 朗读是复习卡已有的能力，速刷只借用同一个组件：语音实现不重写，也不许绕过组件直接碰 Web Speech。
   check('页面层不自己实现语音',
@@ -158,11 +162,20 @@ async function main() {
     (pageSrc.match(/loadSpeedStatuses\(\)/g) || []).length === 1,
     `调用 ${(pageSrc.match(/loadSpeedStatuses\(\)/g) || []).length} 次`);
   for (const token of FORBIDDEN) {
-    const hit = [libSrc, pageSrc].filter(src => src.includes(token)).length;
+    const hit = [libSrc, pageSrc, progressSrc].filter(src => src.includes(token)).length;
     if (hit > 0) check(`源码不引用「${token}」`, false, `命中 ${hit} 个文件`);
   }
   check('速刷源码不引用任何排期/错题/统计写入口',
-    ![libSrc, pageSrc].some(src => FORBIDDEN.some(token => src.includes(token))));
+    ![libSrc, pageSrc, progressSrc].some(src => FORBIDDEN.some(token => src.includes(token))));
+  // 进度层连类型都不必借词库：唯一的依赖是速刷逻辑层的记录形状。
+  check('进度层依赖只有速刷逻辑层，且是 import type',
+    json(importSpecs(progressSrc)) === json(['./speedbrush'])
+    && /import type \{ SpeedProgressRecord \} from '\.\/speedbrush'/.test(progressSrc),
+    `实际 ${json(importSpecs(progressSrc))}`);
+  check('进度只写 localStorage，不经过任何 Dexie 表',
+    /localStorage/.test(progressSrc) && !/indexedDB|IDBKeyRange|Dexie/.test(progressSrc));
+  check('进度键名固定，不会和别的本地数据撞',
+    /const STORAGE_KEY = 'thailearn\.speedbrush\.progress';/.test(progressSrc));
   // 状态层是唯一允许写库的速刷文件，因此单独守：只碰 speedStatuses，别的表名一个都不许出现。
   check('状态层依赖只有 db 入口',
     json([...new Set(importSpecs(statusSrc))]) === json(['./index']),
@@ -646,6 +659,278 @@ async function main() {
     /sanitizeSpeedStatusesForRestore\(data\.speedStatuses, validWordIds\)/.test(moreSrc) &&
     /db\.speedStatuses\.bulkPut\(statuses\)/.test(moreSrc));
   check('恢复速刷状态只覆盖，不整表清空', !/speedStatuses\.clear\(\)/.test(moreSrc));
+
+  // ---------- 13. 进度保存与恢复：位置能接上，筛选一变就不硬接 ----------
+  const deckP = deck(10, 'P');
+  const ids10 = deckP.map(w => w.id);
+  const recOf = (ids, index, s = DEFAULT_SETTINGS) => ({ ids, index, settings: s, updatedAt: 1700000000000 });
+
+  // 13.1 序列一致性：只有决定那串词单的三项才算数。
+  check('同一套筛选算同一条序列', isSameSequence(DEFAULT_SETTINGS, DEFAULT_SETTINGS) === true);
+  for (const key of ['category', 'scope', 'order']) {
+    check(`${key} 一变就不是同一条序列`,
+      isSameSequence(DEFAULT_SETTINGS, { ...DEFAULT_SETTINGS, [key]: key === 'category' ? '问候' : key === 'scope' ? 'unknown' : 'random' }) === false);
+  }
+  for (const key of ['direction', 'autoAdvance']) {
+    check(`${key} 只改卡面与节奏，仍然可以接着刷`,
+      isSameSequence(DEFAULT_SETTINGS, { ...DEFAULT_SETTINGS, [key]: key === 'direction' ? 'cn-to-thai' : false }) === true);
+  }
+
+  // 13.2 恢复：原样一串、停在原处、本轮统计从零。
+  {
+    const r = restoreSession(deckP, recOf(ids10, 4), DEFAULT_SETTINGS);
+    check('整串原样恢复，张数不变', r && json(r.cards.map(w => w.id)) === json(ids10), r && json(r.cards.map(w => w.id)));
+    check('停在记录的那一张：第 5 / 10', r && r.index === 4 && positionOf(r) === 5 && currentCard(r).id === 5,
+      r && json({ index: r.index, pos: positionOf(r), id: currentCard(r)?.id }));
+    check('恢复出来的会话本轮统计从零：浏览/作答/标记都是空',
+      r && statsOf(r).viewed === 0 && statsOf(r).answered === 0 && r.revealed === false && r.viewed.size === 0 && r.marks.size === 0,
+      r && json(statsOf(r)));
+    check('恢复把卡面复位：翻面与喇叭门槛回到「未露答案」', r && canMark(r) === false && r.revealed === false);
+    check('恢复带的设置是浅拷贝，不共享引用', (() => {
+      const s = { ...DEFAULT_SETTINGS };
+      const back = restoreSession(deckP, recOf(ids10, 0), s);
+      return back !== null && back.settings !== s && json(back.settings) === json(s);
+    })());
+    check('会话能一路走到结尾（恢复出来的序列边界正常）', (() => {
+      const s = restoreSession(deckP, recOf(ids10, 8), DEFAULT_SETTINGS);
+      if (!s) return false;
+      goNext(s);
+      return isLastCard(s) && positionOf(s) === 10 && goNext(s) === false;
+    })());
+    check('恢复后往前翻仍按原序列', (() => {
+      const s = restoreSession(deckP, recOf(ids10, 2), DEFAULT_SETTINGS);
+      return goPrev(s) === true && currentCard(s).id === 2;
+    })());
+  }
+
+  // 13.3 词库中途删词：跳过没的，位置落到最近还在的那一张，绝不跟着空转。
+  {
+    const gone = deckP.filter(w => w.id !== 5);
+    const r = restoreSession(gone, recOf(ids10, 4), DEFAULT_SETTINGS);
+    check('上次那张已删：往后找第一张还在的，不前移',
+      r && r.cards.length === 9 && r.index === 4 && currentCard(r).id === 6,
+      r && json({ len: r.cards.length, index: r.index, id: currentCard(r)?.id }));
+    check('删词后串尾越界：停在最后一张', (() => {
+      const last = restoreSession(deckP.filter(w => w.id !== 10), recOf(ids10, 9), DEFAULT_SETTINGS);
+      return last !== null && last.index === 8 && isLastCard(last) && currentCard(last).id === 9;
+    })());
+    check('记录的 index 越界也不会崩：夹到合法范围', (() => {
+      const far = restoreSession(deckP, recOf(ids10, 999), DEFAULT_SETTINGS);
+      const neg = restoreSession(deckP, recOf(ids10, -5), DEFAULT_SETTINGS);
+      return far !== null && currentCard(far).id === 10 && neg !== null && neg.index === 0;
+    })());
+    check('整串词都被删光：返回 null，让页面从头开始',
+      restoreSession([], recOf(ids10, 3), DEFAULT_SETTINGS) === null && restoreSession(deckP, recOf([991, 992], 0), DEFAULT_SETTINGS) === null);
+    check('删词不会改变幸存词的顺序', (() => {
+      const r = restoreSession(deckP.filter(w => ![3, 7].includes(w.id)), recOf(ids10, 0), DEFAULT_SETTINGS);
+      return r !== null && json(r.cards.map(w => w.id)) === json([1, 2, 4, 5, 6, 8, 9, 10]);
+    })());
+  }
+
+  // 13.4 不重摇、不重筛：随机顺序和范围计数都按当时那一串 replay。
+  {
+    // 手工固定一个「非入库顺序」，避免依赖 Math.random 的结果。
+    const randSettings = { ...DEFAULT_SETTINGS, order: 'random' };
+    const customOrder = [7, 3, 10, 1, 9, 2, 8, 4, 6, 5];
+    const r = restoreSession(deckP, recOf(customOrder, 3, randSettings), randSettings);
+    check('随机顺序原样接上：既不重摇也不按 id 排回',
+      r !== null && json(r.cards.map(w => w.id)) === json(customOrder) && currentCard(r).id === 1,
+      r && json(r.cards.map(w => w.id)));
+    check('真正摇过的串也能原样接回来', (() => {
+      const shuffled = createSession(deckP, randSettings);
+      const back = restoreSession(deckP, recOf(shuffled.cards.map(w => w.id), 5, randSettings), randSettings);
+      return back !== null && json(back.cards.map(w => w.id)) === json(shuffled.cards.map(w => w.id))
+        && back.index === 5 && currentCard(back).id === shuffled.cards[5].id;
+    })());
+    check('恢复走的是「不认识」范围时也不重跑筛选：已改判认识的词不会从串里消失', (() => {
+      const scopeSettings = { ...DEFAULT_SETTINGS, scope: 'unknown' };
+      // 记下的三张里，第 2 张此刻已经判成认识；重跑筛选会让它掉出队列、位置整体前移。
+      const r2 = restoreSession(deckP, recOf([1, 2, 3], 1, scopeSettings), scopeSettings);
+      return r2 !== null && json(r2.cards.map(w => w.id)) === json([1, 2, 3]) && currentCard(r2).id === 2;
+    })());
+    check('筛选条件不一致就不硬接：分类/范围/顺序各一例', [
+      restoreSession(deckP, recOf(ids10, 4), { ...DEFAULT_SETTINGS, category: 'P' }),
+      restoreSession(deckP, recOf(ids10, 4), { ...DEFAULT_SETTINGS, scope: 'unknown' }),
+      restoreSession(deckP, recOf(ids10, 4), { ...DEFAULT_SETTINGS, order: 'random' }),
+    ].every(r2 => r2 === null));
+    check('接上位置、换成用户刚选的方向（方向不算筛选冲突）', (() => {
+      const r2 = restoreSession(deckP, recOf(ids10, 4), { ...DEFAULT_SETTINGS, direction: 'cn-to-thai' });
+      return r2 !== null && r2.index === 4 && r2.settings.direction === 'cn-to-thai';
+    })());
+  }
+
+  // 13.5 存取层：只认 localStorage，坏数据一律当「没有进度」。
+  const STORAGE_KEY = 'thailearn.speedbrush.progress';
+  // 假存储只在测试进程内挂在这一份键名上；测完直接摘掉，Node 自带的 localStorage 本身也是空的。
+  function installStorage({ throwOnAccess = false, throwOnWrite = false } = {}) {
+    const map = new Map();
+    const fake = {
+      getItem: key => (map.has(key) ? map.get(key) : null),
+      setItem: (key, value) => {
+        if (throwOnWrite) throw new Error('QuotaExceeded');
+        map.set(key, String(value));
+      },
+      removeItem: key => { map.delete(key); },
+    };
+    if (throwOnAccess) {
+      Object.defineProperty(globalThis, 'localStorage', { configurable: true, get() { throw new Error('blocked'); } });
+    } else {
+      Object.defineProperty(globalThis, 'localStorage', { configurable: true, value: fake });
+    }
+    return map;
+  }
+  function uninstallStorage() {
+    delete globalThis.localStorage;
+  }
+  try {
+    let store = installStorage();
+    check('没有记录时读到 null', loadSpeedProgress() === null);
+    const record = recOf(ids10, 4);
+    saveSpeedProgress(record);
+    check('存进去再读出来一字不变', json(loadSpeedProgress()) === json(record), json(loadSpeedProgress()));
+    check('进度只占约定的那一个键，不污染别的本地数据',
+      json([...store.keys()]) === json([STORAGE_KEY]), json([...store.keys()]));
+    check('记录里只有 id 和位置，不抄词库内容',
+      json(Object.keys(loadSpeedProgress()).sort()) === json(['ids', 'index', 'settings', 'updatedAt']),
+      json(Object.keys(loadSpeedProgress())));
+    clearSpeedProgress();
+    check('清空后读到 null（刷完整串就没有位置可续）', loadSpeedProgress() === null);
+
+    const badPayloads = [
+      '{', 'not json', '[]', 'null', '"text"', '42',
+      json({ ids: [], index: 0, settings: DEFAULT_SETTINGS, updatedAt: 1 }),
+      json({ index: 0, settings: DEFAULT_SETTINGS, updatedAt: 1 }),
+      json({ ids: '123', index: 0, settings: DEFAULT_SETTINGS, updatedAt: 1 }),
+      json({ ids: ids10, index: -1, settings: DEFAULT_SETTINGS, updatedAt: 1 }),
+      json({ ids: ids10, index: 'abc', settings: DEFAULT_SETTINGS, updatedAt: 1 }),
+      json({ ids: ids10, index: 0, updatedAt: 1 }),
+      json({ ids: ids10, index: 0, settings: 'all', updatedAt: 1 }),
+      json({ ids: ids10, index: 0, settings: { category: '' }, updatedAt: 1 }),
+    ];
+    check('坏 JSON/缺字段/类型不对一律读成 null',
+      badPayloads.every(payload => {
+        globalThis.localStorage.setItem(STORAGE_KEY, payload);
+        return loadSpeedProgress() === null;
+      }),
+      json(badPayloads.filter(payload => {
+        globalThis.localStorage.setItem(STORAGE_KEY, payload);
+        return loadSpeedProgress() !== null;
+      })));
+    installStorage();
+    saveSpeedProgress(recOf([1, 2], 1, DEFAULT_SETTINGS));
+    check('脏 updatedAt 记成 0，不影响接续', (() => {
+      const raw = JSON.parse(globalThis.localStorage.getItem(STORAGE_KEY));
+      globalThis.localStorage.setItem(STORAGE_KEY, json({ ...raw, updatedAt: '昨天' }));
+      return loadSpeedProgress()?.updatedAt === 0;
+    })());
+    check('写失败（配额或被禁用）只影响接续，不抛到刷词里', (() => {
+      try {
+        installStorage({ throwOnWrite: true });
+        saveSpeedProgress(recOf(ids10, 2));
+        clearSpeedProgress();
+        loadSpeedProgress();
+        return true;
+      } catch {
+        return false;
+      }
+    })());
+    check('存储整体不可用（隐私模式）时读写都当没有', (() => {
+      try {
+        installStorage({ throwOnAccess: true });
+        saveSpeedProgress(recOf(ids10, 2));
+        return loadSpeedProgress() === null && clearSpeedProgress() === undefined;
+      } catch {
+        return false;
+      }
+    })());
+    uninstallStorage();
+    check('浏览器没有 localStorage 时同样安全', (() => {
+      try {
+        return loadSpeedProgress() === null && (saveSpeedProgress(recOf(ids10, 0)), clearSpeedProgress(), true);
+      } catch {
+        return false;
+      }
+    })());
+
+    // 13.6 端到端（不含 DOM）：刷到中途 → 落盘 → 重进 → 接上同一张。
+    check('刷到中途退出再重进，接在最后一次看到的那一张', (() => {
+      const store = installStorage();
+      try {
+        const first = createSession(deckP, DEFAULT_SETTINGS);
+        for (let i = 0; i < 4; i++) {
+          revealCard(first);
+          setMark(first, 'known');
+          goNext(first);
+        }
+        // 页面 paint 时记的就是这份。
+        saveSpeedProgress({ ids: first.cards.map(w => cardKey(w)), index: first.index, settings: { ...first.settings }, updatedAt: Date.now() });
+        const again = restoreSession(deckP, loadSpeedProgress(), DEFAULT_SETTINGS);
+        const sameCard = again !== null && again.index === first.index && currentCard(again).thai === currentCard(first).thai;
+        const freshRound = again !== null && statsOf(again).viewed === 0 && statsOf(again).answered === 0;
+        // 从头开始：序列不变、位置归零，重新落盘后读到的是 index 0。
+        restartSession(again);
+        saveSpeedProgress({ ids: again.cards.map(w => cardKey(w)), index: again.index, settings: { ...again.settings }, updatedAt: Date.now() });
+        const zeroed = restoreSession(deckP, loadSpeedProgress(), DEFAULT_SETTINGS);
+        const resetOk = zeroed !== null && zeroed.index === 0 && json(zeroed.cards.map(w => w.id)) === json(ids10);
+        return sameCard && freshRound && resetOk && store.size === 1 && store.has(STORAGE_KEY);
+      } finally {
+        uninstallStorage();
+      }
+    })());
+  } finally {
+    uninstallStorage();
+  }
+
+  // 13.7 页面接线：保存点、清理点、重置点与界面提示都在。
+  {
+    const cssSrc = readSrc('src/styles/components.css');
+    check('每次翻到一张都记位置', /syncSpeak\(\);\s*\n\s*\/\/ 每翻到一张[\s\S]{0,80}?persistProgress\(s\);/.test(pageSrc));
+    check('标记后也记（自动跳的由 paint 顺手记下，不重复写）',
+      /if \(s\.settings\.autoAdvance\) advance\(\);\s*else \{[\s\S]{0,120}?persistProgress\(s\);[\s\S]{0,40}?bindSlot\(\);/.test(pageSrc));
+    check('确认退出时先记位置再丢会话', /if \(ok\) \{[\s\S]{0,120}?persistProgress\(session\);[\s\S]{0,60}?session = null;/.test(pageSrc));
+    check('顶栏返回同样先记位置', /if \(!confirm\(EXIT_TEXT\)\) return;\s*\n\s*persistProgress\(s\);\s*\n\s*renderSetup\(container\);/.test(pageSrc));
+    check('手滑刷新前也记一次', /if \(session\) persistProgress\(session\);\s*\n\s*event\.preventDefault/.test(pageSrc));
+    check('刷完整串就清掉位置', /dropProgress\(\);\s*\n\s*mountDone\(container, s\);/.test(pageSrc));
+    check('清位置只有一个出口，避免各处自创清理',
+      (pageSrc.match(/clearSpeedProgress\(\)/g) || []).length === 1);
+    check('记位置只走 speedProgress，不碰状态表',
+      (pageSrc.match(/saveSpeedProgress\(/g) || []).length === 1
+      && (pageSrc.match(/await saveSpeedStatus\(/g) || []).length === 1);
+    check('设置页有可续/不可续两套文案',
+      /继续速刷（第 \$\{positionOf\(resumable\)\} \/ \$\{resumable\.cards\.length\} 张）/.test(pageSrc)
+      && /开始速刷（\$\{count\} 张）/.test(pageSrc));
+    check('设置页显示上次刷到第几张与当时的筛选',
+      /上次刷到第 \$\{positionOf\(resumable\)\} \/ \$\{resumable\.cards\.length\} 张/.test(pageSrc)
+      && /settingsSummary\(resumable\.settings\)/.test(pageSrc));
+    check('筛选与进度不符时说明原因，不假装能续',
+      /上次的位置属于另一套筛选条件/.test(pageSrc) && /resumableSession\(\) \?\? createSession\(poolWithinCategory\(\), settings\)/.test(pageSrc));
+    check('从头开始这一串走 createSession，不动长期状态',
+      /begin\(createSession\(poolWithinCategory\(\), settings\)\)/.test(pageSrc));
+    check('刷词中也能随时归零', /restartSession\(s\);\s*\n\s*paint\(\);/.test(pageSrc));
+    check('重新打乱把设置也改成随机，接续时选中的顺序对得上这一串',
+      /reshuffleSession\(s\);\s*\n\s*s\.settings = \{ \.\.\.s\.settings, order: 'random' \};\s*\n\s*settings = \{ \.\.\.settings, order: 'random' \};/.test(pageSrc));
+    check('归零按钮走确认，手滑不会丢进度', /confirm\('从头开始这一串/.test(pageSrc));
+    check('退出文案说明位置会留着', /const EXIT_TEXT = '[^']*位置也留着/.test(pageSrc));
+    check('恢复只吃 words/记录/设置，不读状态表也不读排期',
+      /export function restoreSession\(words: Word\[\], record: SpeedProgressRecord, settings: SpeedSettings\): SpeedSession \| null \{[\s\S]*?\n\}/.test(libSrc)
+      && !/statuses|speedStatuses|nextReview/.test((libSrc.match(/export function restoreSession\([\s\S]*?\n\}/) || [''])[0]));
+    check('进度样式有专门的卡片与顶栏按钮，不靠临时内联',
+      /\.speed-resume \{/.test(cssSrc) && /\.page-header \.speed-restart \{/.test(cssSrc));
+    check('设置页收成「速刷规则」一个折叠框，进度段嵌在框内',
+      /<details class="csv-spec">\s*<summary class="csv-spec-title">速刷规则<span class="csv-spec-sub" id="sb-rules-sub"><\/span><\/summary>\s*<div class="csv-spec-body">\s*<div id="sb-resume"><\/div>\s*<div class="speed-rules-text">/.test(pageSrc)
+      && /\.speed-rules-text \{/.test(cssSrc));
+    check('折叠框默认收起，进度写在标题行里不收起来就看不见',
+      !/<details class="csv-spec" open>/.test(pageSrc)
+      && /rulesSub\.textContent = `上次刷到第 \$\{positionOf\(resumable\)\} \/ \$\{resumable\.cards\.length\} 张`/.test(pageSrc));
+    check('进度段不再自套一张卡，说明文案也不留第二张标题卡',
+      !/class="card speed-resume/.test(pageSrc) && !/直接读现有词库/.test(pageSrc));
+    const backupBlock = (moreSrc.match(/const data = \{[\s\S]*?\n    \};/) || [''])[0];
+    const backupKeys = [...backupBlock.matchAll(/^\s{6}(\w+):/gm)].map(m => m[1]);
+    check('进度不进 JSON 备份：恢复会重排词 id，位置只能留在本机',
+      backupKeys.length === 14 && backupKeys.includes('speedStatuses')
+      && !backupKeys.some(k => /progress/i.test(k)) && !/lib\/speedProgress/.test(moreSrc),
+      json(backupKeys));
+  }
 
   return { count: results.length, failed };
 }

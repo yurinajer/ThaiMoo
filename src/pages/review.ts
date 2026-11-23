@@ -82,7 +82,7 @@ export async function renderReviewPage(container: HTMLElement): Promise<void> {
 
     <div class="tabs" id="mode-tabs" style="margin-top:16px;">
       <button class="tab active" data-mode="thai-to-cn">泰文 → 中文</button>
-      <button class="tab" data-mode="cn-to-thai">中文 → 泰文 · 默写</button>
+      <button class="tab" data-mode="cn-to-thai">中文 → 泰文 · 可选默写</button>
     </div>
 
     <button class="btn btn-primary btn-block btn-lg" id="btn-start-review">${queueIsEmpty ? '开始复习' : `开始复习（本轮 ${cap.planned} 张）`}</button>
@@ -239,42 +239,35 @@ function startReviewSession(container: HTMLElement, items: ReviewItem[], mode: R
     }
 
     const card = createElement('div', {});
-    const toneTags = toneTagsHtml(item.word.toneMark);
+    card.className = 'flashcard review-card';
+    card.id = 'flashcard';
 
-    if (mode === 'thai-to-cn') {
-      card.className = 'flashcard review-card';
-      card.id = 'flashcard';
-      card.innerHTML = `
+    // 两个方向共用同一副翻卡：正面题干、背面答案与详情。
+    // 中→泰 的默写挂在正面，是可选练习，不是翻卡或评分的前置条件。
+    card.innerHTML = mode === 'thai-to-cn'
+      ? `
         <div class="flashcard-inner">
           <div class="flashcard-front">
-            <div class="thai-text-lg" style="font-weight:500;">${escapeHtml(item.word.thai)}</div>
-            ${(item.word.romanization ?? '').trim() ? `<div class="card-roman">${escapeHtml(item.word.romanization!.trim())}</div>` : ''}
-            ${toneTags ? `<div style="margin-top:8px;">${toneTags}</div>` : ''}
+            ${thaiFaceHtml(item.word)}
             <div class="flashcard-hint">点击翻转查看释义</div>
           </div>
           <div class="flashcard-back">
             <div style="font-size:1.3rem; font-weight:600; margin-bottom:8px;">${escapeHtml(item.word.meaning)}</div>
-            ${item.word.pos ? `<div style="font-size:0.85rem; color:var(--text-secondary); margin-bottom:4px;">${escapeHtml(item.word.pos)}</div>` : ''}
-            ${item.word.example ? `<div style="font-size:0.85rem; color:var(--text-muted); font-family:var(--font-thai); margin-top:8px;">${escapeHtml(item.word.example)}</div>` : ''}
-            ${(item.word.exampleRoman ?? '').trim() ? `<div style="font-size:0.8rem; color:var(--orange-700); margin-top:2px;">${escapeHtml(item.word.exampleRoman!.trim())}</div>` : ''}
-            ${(item.word.exampleMeaning ?? '').trim() ? `<div style="font-size:0.8rem; color:var(--text-muted); margin-top:2px;">${escapeHtml(item.word.exampleMeaning!.trim())}</div>` : ''}
-            ${item.word.note ? `<div style="font-size:0.8rem; color:var(--text-muted); margin-top:8px;">📝 ${escapeHtml(item.word.note)}</div>` : ''}
+            ${wordDetailsHtml(item.word)}
             <div class="flashcard-hint">点击返回泰文</div>
           </div>
         </div>
         ${speakButtonHtml()}
+      `
+      : `
+        <div class="flashcard-inner">
+          <div class="flashcard-front">${dictationQuestionHtml(item.word)}</div>
+          <div class="flashcard-back">${dictationAnswerHtml(item.word)}</div>
+        </div>
+        ${speakButtonHtml()}
       `;
-    } else {
-      card.className = 'dictation-card';
-      card.id = 'dictation-card';
-      card.innerHTML = dictationCardHtml(item.word);
-    }
 
     content.appendChild(card);
-
-    // 泰→中 的卡面本来就写着泰文，朗读喇叭直接长在卡片里；
-    // 中→泰 默写的喇叭要等提交后随正确答案一起出现，否则一听读音就等于给了答案。
-    if (mode === 'thai-to-cn') bindSpeakButton(card, item.word.thai);
 
     const fsrsButtons = createElement('div', { className: 'fsrs-buttons', style: 'display:none;', id: 'fsrs-buttons' });
     fsrsButtons.innerHTML = GRADE_TABLE.map(spec => `
@@ -285,19 +278,47 @@ function startReviewSession(container: HTMLElement, items: ReviewItem[], mode: R
     `).join('');
     content.appendChild(fsrsButtons);
 
+    // 泰→中 的正面本来就写着泰文，朗读喇叭直接长在卡片里；
+    // 中→泰 一听读音等于给了答案，所以要等答案面露出（翻卡或提交默写）才亮。
+    const speakBtn = card.querySelector('.card-speak') as HTMLElement;
+    let answerShown = false;
     if (mode === 'thai-to-cn') {
-      card.addEventListener('click', () => {
-        isFlipped = !isFlipped;
-        card.classList.toggle('flipped', isFlipped);
-        // 评分按钮一旦露出就常驻：翻回泰文只是收起释义，不能把评分入口一起收掉
-        if (isFlipped) {
-          document.getElementById('fsrs-buttons')!.style.display = 'grid';
-        }
-      });
+      bindSpeakButton(card, item.word.thai);
     } else {
+      speakBtn.style.display = 'none';
+    }
+
+    // 答案一旦露出就不再收回去：翻回题干只是收起答案面，评分入口和读音要留着。
+    const revealAnswer = (): void => {
+      if (answerShown) return;
+      answerShown = true;
+      fsrsButtons.style.display = 'grid';
+      if (mode === 'cn-to-thai') {
+        speakBtn.style.display = '';
+        bindSpeakButton(card, item.word.thai);
+      }
+    };
+
+    card.addEventListener('click', () => {
+      isFlipped = !isFlipped;
+      card.classList.toggle('flipped', isFlipped);
+      if (isFlipped) revealAnswer();
+    });
+
+    if (mode === 'cn-to-thai') {
+      const toggle = card.querySelector('#btn-dictation-toggle') as HTMLButtonElement;
+      const panel = card.querySelector('#dictation-panel') as HTMLElement;
       const input = card.querySelector('#dictation-input') as HTMLInputElement;
       const submitBtn = card.querySelector('#btn-submit-dictation') as HTMLButtonElement;
       let submitted = false;
+
+      // 默写区里的点击是打字用的，不能顺手把卡片翻了
+      panel.addEventListener('click', (e) => e.stopPropagation());
+      toggle.addEventListener('click', (e) => {
+        e.stopPropagation();
+        panel.hidden = !panel.hidden;
+        toggle.setAttribute('aria-expanded', String(!panel.hidden));
+      });
 
       input.addEventListener('input', () => {
         submitBtn.disabled = submitted || !canSubmitDictation(input.value);
@@ -307,15 +328,20 @@ function startReviewSession(container: HTMLElement, items: ReviewItem[], mode: R
         if (submitted || !canSubmitDictation(input.value)) return;
         submitted = true;
         input.blur();
-        submitBtn.style.display = 'none';
-        const userAnswer = createElement('div', { className: 'dictation-user-answer' }, input.value);
-        input.replaceWith(userAnswer);
+        // 面板还能重新展开，提交入口必须跟着置灰，不能留着一个点了没反应的按钮
+        submitBtn.disabled = true;
+        panel.hidden = true;
+        toggle.setAttribute('aria-expanded', 'false');
+        toggle.textContent = '已默写';
+        // 「你的答案」写在背面，和「正确答案」上下相邻，方便逐字对照
+        const userAnswer = card.querySelector('#dictation-user-answer') as HTMLElement;
+        userAnswer.textContent = input.value;
+        userAnswer.style.display = 'flex';
         (card.querySelector('#dictation-user-label') as HTMLElement).style.display = 'block';
-        const reveal = card.querySelector('#dictation-reveal') as HTMLElement;
-        reveal.innerHTML = dictationRevealHtml(item.word);
-        reveal.style.display = 'block';
-        document.getElementById('fsrs-buttons')!.style.display = 'grid';
-        bindSpeakButton(reveal, item.word.thai);
+        (card.querySelector('#dictation-score-hint') as HTMLElement).style.display = 'block';
+        isFlipped = true;
+        card.classList.add('flipped');
+        revealAnswer();
       };
 
       submitBtn.addEventListener('click', submitAnswer);
@@ -365,30 +391,55 @@ export function canSubmitDictation(value: string): boolean {
   return value.trim().length > 0;
 }
 
-export function dictationCardHtml(word: Word): string {
-  return `
-    <div class="dictation-meaning">${escapeHtml(word.meaning)}</div>
-    ${word.pos ? `<div class="dictation-pos">${escapeHtml(word.pos)}</div>` : ''}
-    <div class="dictation-user-label" id="dictation-user-label" style="display:none;">你的答案</div>
-    <input id="dictation-input" class="input dictation-input" type="text" lang="th"
-      placeholder="凭记忆输入泰文拼写" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="done">
-    <button class="btn btn-primary btn-block btn-lg dictation-submit" id="btn-submit-dictation" disabled>提交答案</button>
-    <div class="dictation-reveal" id="dictation-reveal" style="display:none;"></div>
-  `;
-}
-
-export function dictationRevealHtml(word: Word): string {
+// 泰文侧的题面/答案头：泰文 + 罗马音 + 逐音节声调，泰→中 正面和中→泰 背面共用。
+function thaiFaceHtml(word: Word): string {
   const toneTags = toneTagsHtml(word.toneMark);
   return `
-    <div class="dictation-reveal-top">
-      <div class="dictation-reveal-label">正确答案</div>
-      ${speakButtonHtml()}
-    </div>
     <div class="thai-text-lg" style="font-weight:500;">${escapeHtml(word.thai)}</div>
     ${(word.romanization ?? '').trim() ? `<div class="card-roman">${escapeHtml(word.romanization!.trim())}</div>` : ''}
     ${toneTags ? `<div style="margin-top:8px;">${toneTags}</div>` : ''}
+  `;
+}
+
+// 题干/答案之外的词库字段，缺项直接不渲染，两个方向共用同一段。
+function wordDetailsHtml(word: Word): string {
+  return `
+    ${word.pos ? `<div style="font-size:0.85rem; color:var(--text-secondary); margin-bottom:4px;">${escapeHtml(word.pos)}</div>` : ''}
     ${word.example ? `<div style="font-size:0.85rem; color:var(--text-muted); font-family:var(--font-thai); margin-top:8px;">${escapeHtml(word.example)}</div>` : ''}
-    <div class="dictation-hint">对照上方你的答案，自行评分</div>
+    ${(word.exampleRoman ?? '').trim() ? `<div style="font-size:0.8rem; color:var(--orange-700); margin-top:2px;">${escapeHtml(word.exampleRoman!.trim())}</div>` : ''}
+    ${(word.exampleMeaning ?? '').trim() ? `<div style="font-size:0.8rem; color:var(--text-muted); margin-top:2px;">${escapeHtml(word.exampleMeaning!.trim())}</div>` : ''}
+    ${word.note ? `<div style="font-size:0.8rem; color:var(--text-muted); margin-top:8px;">📝 ${escapeHtml(word.note)}</div>` : ''}
+  `;
+}
+
+// 中→泰 正面：只给中文题干和可选的默写入口，绝不提前漏出泰文、罗马音或声调。
+export function dictationQuestionHtml(word: Word): string {
+  return `
+    <div class="dictation-meaning">${escapeHtml(word.meaning)}</div>
+    ${word.pos ? `<div class="dictation-pos">${escapeHtml(word.pos)}</div>` : ''}
+    <div class="dictation-tools">
+      <button class="btn btn-secondary btn-sm" id="btn-dictation-toggle" type="button" aria-expanded="false">默写</button>
+    </div>
+    <div class="dictation-panel" id="dictation-panel" hidden>
+      <input id="dictation-input" class="input dictation-input" type="text" lang="th"
+        placeholder="凭记忆输入泰文拼写" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="done">
+      <button class="btn btn-primary btn-block btn-lg dictation-submit" id="btn-submit-dictation" disabled>提交答案</button>
+    </div>
+    <div class="flashcard-hint">点击卡片翻转看泰文，想先写一遍就点「默写」</div>
+  `;
+}
+
+// 中→泰 背面：答案加详情。「你的答案」和评分提示只有提交过默写才露出来，
+// 直接翻卡时这两块保持隐藏，看起来就和泰→中 的答案面一样。
+export function dictationAnswerHtml(word: Word): string {
+  return `
+    <div class="dictation-user-label" id="dictation-user-label" style="display:none;">你的答案</div>
+    <div class="dictation-user-answer" id="dictation-user-answer" style="display:none;"></div>
+    <div class="dictation-answer-label">正确答案</div>
+    ${thaiFaceHtml(word)}
+    ${wordDetailsHtml(word)}
+    <div class="dictation-hint" id="dictation-score-hint" style="display:none;">对照上方「你的答案」自行评分，再选下面的复习档位</div>
+    <div class="flashcard-hint">点击卡片可翻回中文</div>
   `;
 }
 

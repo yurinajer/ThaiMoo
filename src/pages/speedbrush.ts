@@ -3,19 +3,20 @@ import { getAllWords, type Word } from '../db/vocabulary';
 import { loadSpeedStatuses, saveSpeedStatus } from '../db/speedStatus';
 import { setLeaveGuard } from '../lib/route-guard';
 import { bindSpeakButton, speakButtonHtml } from '../components/card-speak';
+import { clearSpeedProgress, loadSpeedProgress, saveSpeedProgress } from '../lib/speedProgress';
 import {
-  ALL_CATEGORIES, DEFAULT_SETTINGS, answerText, buildCategoryOptions, buildScopeOptions,
+  ALL_CATEGORIES, DEFAULT_SETTINGS, SCOPE_OPTIONS, answerText, buildCategoryOptions, buildScopeOptions,
   canMark, cardKey, createSession, currentCard, filterByCategory, filterByScope, frontText,
-  goNext, goPrev, isFirstCard, isLastCard, keepUnknownOnly, markOf, positionOf, restartSession,
-  reshuffleSession, revealCard, setMark, statsOf, unknownCards,
-  type SpeedDirection, type SpeedMark, type SpeedOrder, type SpeedScope, type SpeedSession,
-  type SpeedSettings, type SpeedStatusMap,
+  goNext, goPrev, isFirstCard, isLastCard, keepUnknownOnly, markOf, positionOf,
+  restartSession, reshuffleSession, restoreSession, revealCard, setMark, statsOf, unknownCards,
+  type SpeedDirection, type SpeedMark, type SpeedOrder, type SpeedProgressRecord, type SpeedScope,
+  type SpeedSession, type SpeedSettings, type SpeedStatusMap,
 } from '../lib/speedbrush';
 
 type SpeedView = 'setup' | 'brushing' | 'done';
 
 const ROUTE = '/speedbrush';
-const EXIT_TEXT = '退出本次速刷？本轮统计会清空，已保存的认识状态仍保留。';
+const EXIT_TEXT = '退出本次速刷？本轮统计会清空，已保存的认识状态仍保留，位置也留着，下次进来接着刷。';
 
 // 速刷只活在内存里：路由离开即作废，所以设置项放模块级，重新进来还认得上次的筛选。
 let settings: SpeedSettings = { ...DEFAULT_SETTINGS };
@@ -24,6 +25,8 @@ let view: SpeedView = 'setup';
 let library: Word[] = [];
 // 长期状态只在进页面时整表读一次：规模就是一个词几千行，逐张查库反而更慢。
 let statuses: SpeedStatusMap = new Map();
+// 上次退出留下的位置。整串 id 也就几十 KB，进页读一次，之后都在内存里换算。
+let progress: SpeedProgressRecord | null = null;
 let unloadBound = false;
 
 function disarmGuard(): void {
@@ -33,6 +36,7 @@ function disarmGuard(): void {
 function onBeforeUnload(event: BeforeUnloadEvent): void {
   if (view !== 'brushing') return;
   // 浏览器不给自定义文案，能拦住手滑刷新就够了。
+  if (session) persistProgress(session);
   event.preventDefault();
   event.returnValue = '';
 }
@@ -44,6 +48,8 @@ function armGuard(): void {
     if (from !== ROUTE || view !== 'brushing') return true;
     const ok = confirm(EXIT_TEXT);
     if (ok) {
+      // 位置先记下再丢会话：下次进来还是这张卡。
+      if (session) persistProgress(session);
       session = null;
       disarmGuard();
     }
@@ -55,6 +61,36 @@ function armGuard(): void {
   }
 }
 
+// 进度记的是整串 id 加当前下标：重新摇一次就不是同一份词单了，位置也就无从对起。
+function persistProgress(s: SpeedSession): void {
+  const record: SpeedProgressRecord = {
+    ids: s.cards.map(word => cardKey(word)),
+    index: s.index,
+    settings: { ...s.settings },
+    updatedAt: Date.now(),
+  };
+  saveSpeedProgress(record);
+  progress = record;
+}
+
+function dropProgress(): void {
+  clearSpeedProgress();
+  progress = null;
+}
+
+// 当前筛选下能接上次的会话就接，接不上（筛选变了、词全删了、没记过）给 null，由调用方从头建。
+function resumableSession(): SpeedSession | null {
+  return progress ? restoreSession(library, progress, settings) : null;
+}
+
+function settingsSummary(s: SpeedSettings): string {
+  const category = s.category === ALL_CATEGORIES ? '全部标签' : s.category;
+  const scope = SCOPE_OPTIONS.find(opt => opt.scope === s.scope)?.label ?? s.scope;
+  const order = s.order === 'random' ? '随机顺序' : '原始顺序';
+  const direction = s.direction === 'thai-to-cn' ? '泰→中' : '中→泰';
+  return `${category} · ${scope} · ${order} · ${direction}`;
+}
+
 function rateText(rate: number | null): string {
   return rate === null ? '—' : `${rate}%`;
 }
@@ -62,6 +98,10 @@ function rateText(rate: number | null): string {
 export async function renderSpeedbrushPage(container: HTMLElement): Promise<void> {
   library = await getAllWords();
   statuses = await loadSpeedStatuses();
+  progress = loadSpeedProgress();
+  // 位置和筛选是一套记下来的：进页面先整套认回上次的筛选，
+  // 「继续速刷」指向的才会是界面上选中的那一串。
+  if (progress) settings = { ...progress.settings };
   if (view === 'brushing' && session && session.cards.length > 0) {
     renderBrushing(container);
   } else {
@@ -115,13 +155,17 @@ function renderSetup(container: HTMLElement): void {
   container.innerHTML = `
     <div class="page-header"><h1>单词速刷</h1></div>
     <div class="page-content">
-      <div class="card">
-        <div style="font-weight:600; font-size:0.9rem; margin-bottom:6px;">直接读现有词库</div>
-        <div style="font-size:0.85rem; color:var(--text-muted); line-height:1.6;">
-          速刷不排期、不评分：认识与否单独存进速刷状态，退出、刷新、关掉浏览器都还在，
-          但不进复习队列，也不改任何复习统计。
+      <details class="csv-spec">
+        <summary class="csv-spec-title">速刷规则<span class="csv-spec-sub" id="sb-rules-sub"></span></summary>
+        <div class="csv-spec-body">
+          <div id="sb-resume"></div>
+          <div class="speed-rules-text">
+            速刷不排期、不评分：认识与否单独存进速刷状态，退出、刷新、关掉浏览器都还在，
+            但不进复习队列，也不改任何复习统计。刷到第几张也记在浏览器本地，下次进来接着刷；
+            「从头开始」只把位置挪回第一张，已保存的状态一个都不动。
+          </div>
         </div>
-      </div>
+      </details>
 
       ${categories.length > 1 ? `
         <div class="section-title" style="margin-top:20px;">分类</div>
@@ -157,18 +201,46 @@ function renderSetup(container: HTMLElement): void {
       </div>
 
       <button class="btn btn-primary btn-block btn-lg" id="sb-start" style="margin-top:24px;"></button>
+      <button class="btn btn-secondary btn-block" id="sb-zero" style="margin-top:12px; display:none;">从头开始这一串</button>
       <p class="review-cap-notice" id="sb-hint"></p>
     </div>
   `;
 
   const startBtn = container.querySelector('#sb-start') as HTMLButtonElement;
+  const zeroBtn = container.querySelector('#sb-zero') as HTMLButtonElement;
+  const resumeBox = container.querySelector('#sb-resume') as HTMLElement;
+  const rulesSub = container.querySelector('#sb-rules-sub') as HTMLElement;
   const hint = container.querySelector('#sb-hint') as HTMLElement;
   const scopeChips = [...container.querySelectorAll('#sb-scopes .chip')];
 
+  // 每次改筛选都要重算「能不能续」：序列只由分类/范围/顺序三项决定，
+  // 任一项一动，上次记下的那串就对不上了，按钮文案得跟着换成「开始速刷」。
   const syncStart = () => {
+    const resumable = resumableSession();
+    if (resumable) {
+      startBtn.textContent = `继续速刷（第 ${positionOf(resumable)} / ${resumable.cards.length} 张）`;
+      startBtn.disabled = false;
+      zeroBtn.style.display = '';
+      hint.textContent = '';
+      // 折叠框收起来时也要看得见位置，所以进度写在标题行；展开后再补筛选条件和口径说明，
+      // 同一句话不重复两遍。
+      rulesSub.textContent = `上次刷到第 ${positionOf(resumable)} / ${resumable.cards.length} 张`;
+      resumeBox.innerHTML = `
+        <div class="speed-resume">
+          <div class="speed-resume-meta">${escapeHtml(settingsSummary(resumable.settings))}</div>
+          <div class="speed-resume-note">接着这张往下刷。本轮的浏览/认识统计从零重记，已保存的认识状态与复习数据都不受影响。</div>
+        </div>
+      `;
+      return;
+    }
     const count = poolWithinCategory().length;
     startBtn.textContent = `开始速刷（${count} 张）`;
     startBtn.disabled = count === 0;
+    zeroBtn.style.display = 'none';
+    rulesSub.textContent = progress ? '上次的位置属于另一套筛选条件' : '不排期、不评分，进度只记在本机';
+    resumeBox.innerHTML = progress
+      ? `<div class="speed-resume stale">上次的位置属于另一套筛选条件（${escapeHtml(settingsSummary(progress.settings))}），改回那套就能接着刷；现在开始的会是新的一串。</div>`
+      : '';
     hint.textContent = count === 0 ? emptyHint() : '';
   };
 
@@ -199,6 +271,8 @@ function renderSetup(container: HTMLElement): void {
       container.querySelectorAll('#sb-direction .tab').forEach(other => other.classList.remove('active'));
       tab.classList.add('active');
       settings = { ...settings, direction: tab.getAttribute('data-direction') as SpeedDirection };
+      // 方向不改序列，但进度卡上写的是这套筛选，文案得跟着换。
+      syncStart();
     });
   });
 
@@ -207,6 +281,8 @@ function renderSetup(container: HTMLElement): void {
       container.querySelectorAll('#sb-order .tab').forEach(other => other.classList.remove('active'));
       tab.classList.add('active');
       settings = { ...settings, order: tab.getAttribute('data-order') as SpeedOrder };
+      // 顺序一改，上次那串的位置就不再是同一个位置了。
+      syncStart();
     });
   });
 
@@ -217,13 +293,19 @@ function renderSetup(container: HTMLElement): void {
     autoChip.setAttribute('aria-pressed', String(settings.autoAdvance));
   });
 
-  startBtn.addEventListener('click', () => {
-    // 范围在进会话前就切好；createSession 里的标签筛选是同一条件的第二次过滤，幂等。
-    const next = createSession(poolWithinCategory(), settings);
-    if (next.cards.length === 0) return;
+  const begin = (next: SpeedSession | null): void => {
+    if (!next || next.cards.length === 0) return;
     session = next;
     renderBrushing(container);
+  };
+
+  startBtn.addEventListener('click', () => {
+    // 能续就续；续不上才按当前筛选新建一串（createSession 里的标签筛选是同一条件的第二次过滤，幂等）。
+    begin(resumableSession() ?? createSession(poolWithinCategory(), settings));
   });
+
+  // 主动归零：丢掉上次位置，按当前筛选从第一张重来，长期状态表一个字都不碰。
+  zeroBtn.addEventListener('click', () => begin(createSession(poolWithinCategory(), settings)));
 
   syncStart();
 }
@@ -326,13 +408,24 @@ function mountBrushing(container: HTMLElement, s: SpeedSession): void {
     <button class="back-btn" id="sb-back" aria-label="返回设置">←</button>
     <h1>单词速刷</h1>
     <span class="speed-progress-text" id="sb-pos"></span>
+    <button class="speed-restart" id="sb-zero-round" type="button">从头开始</button>
   `;
   container.appendChild(header);
   const content = createElement('div', { className: 'page-content' });
   container.appendChild(content);
 
+  // 退出前把位置记下（确认文案里说的「位置也留着」靠这一步兑现），再回设置页。
   header.querySelector('#sb-back')!.addEventListener('click', () => {
-    if (confirm(EXIT_TEXT)) renderSetup(container);
+    if (!confirm(EXIT_TEXT)) return;
+    persistProgress(s);
+    renderSetup(container);
+  });
+
+  // 刷到一半想重来：位置归零并立刻按新序列重记，长期状态与本轮以外的东西都不受影响。
+  header.querySelector('#sb-zero-round')!.addEventListener('click', () => {
+    if (!confirm('从头开始这一串？本轮统计清零，已保存的认识状态仍保留。')) return;
+    restartSession(s);
+    paint();
   });
 
   // flipped 是卡面当前朝哪一面；revealed 是这张翻出过答案没有，回看已作答的词也允许改标。
@@ -375,7 +468,11 @@ function mountBrushing(container: HTMLElement, s: SpeedSession): void {
         statuses.set(id, mark);
         syncStats();
         if (s.settings.autoAdvance) advance();
-        else bindSlot();
+        else {
+          // 自动跳下一张时 paint 会顺手记下新位置；不跳的这张停在原地，也要把「刚标记到这张」存下来。
+          persistProgress(s);
+          bindSlot();
+        }
       });
     });
   };
@@ -430,6 +527,8 @@ function mountBrushing(container: HTMLElement, s: SpeedSession): void {
     });
     content.querySelector('#sb-next')!.addEventListener('click', advance);
     syncSpeak();
+    // 每翻到一张就记一次位置：这样退出、刷新、直接关页面都停在最后看到的那张。
+    persistProgress(s);
   }
 
   paint();
@@ -441,6 +540,8 @@ function renderDone(container: HTMLElement): void {
     renderSetup(container);
     return;
   }
+  // 整串刷完就没有「上次位置」可续了：清掉进度，结算页的重来/重排会按新序列重新记。
+  dropProgress();
   mountDone(container, s);
 }
 
@@ -486,7 +587,10 @@ function mountDone(container: HTMLElement, s: SpeedSession): void {
     renderBrushing(container);
   });
   content.querySelector('#sb-shuffle')!.addEventListener('click', () => {
+    // 打乱之后的串确实是随机序列：设置跟着改，下次进来选中的「顺序」才对得上这一串。
     reshuffleSession(s);
+    s.settings = { ...s.settings, order: 'random' };
+    settings = { ...settings, order: 'random' };
     renderBrushing(container);
   });
   content.querySelector('#sb-unknown')!.addEventListener('click', () => {

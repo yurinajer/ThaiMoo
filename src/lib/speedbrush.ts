@@ -57,6 +57,14 @@ export interface SpeedCategory {
   count: number;
 }
 
+// 上次刷到哪：整串 id 一起记，随机顺序才能原样续上；几千个 id 也就几十 KB。
+export interface SpeedProgressRecord {
+  ids: number[];
+  index: number;
+  settings: SpeedSettings;
+  updatedAt: number;
+}
+
 export interface SpeedStats {
   total: number;
   viewed: number;
@@ -128,6 +136,40 @@ export function createSession(words: Word[], settings: SpeedSettings): SpeedSess
     viewed: new Set(),
     marks: new Map(),
   };
+}
+
+// 分类/范围/顺序决定序列本身，方向和自动跳只改卡面与节奏，所以只有前三项一致才谈得上「接着刷」。
+export function isSameSequence(a: SpeedSettings, b: SpeedSettings): boolean {
+  return a.category === b.category && a.scope === b.scope && a.order === b.order;
+}
+
+// 恢复的是上次那一串，不重新生成：重摇一次等于换了词单，位置也就白记了。
+// 中途删掉的词直接跳过，其余保持原顺序；本轮统计从零起，计分口径与新建会话一致。
+export function restoreSession(words: Word[], record: SpeedProgressRecord, settings: SpeedSettings): SpeedSession | null {
+  if (!isSameSequence(record.settings, settings)) return null;
+  const byId = new Map<number, Word>();
+  for (const word of words) {
+    if (word.id !== undefined) byId.set(word.id, word);
+  }
+  const cards: Word[] = [];
+  const origin: number[] = [];
+  record.ids.forEach((id, pos) => {
+    const word = byId.get(id);
+    if (!word) return;
+    cards.push(word);
+    origin.push(pos);
+  });
+  if (cards.length === 0) return null;
+  const anchor = Math.min(Math.max(Math.floor(record.index), 0), record.ids.length - 1);
+  // 上次那张可能已被删：往后找第一张还在的，整串都没了才停在最后一张。
+  let index = cards.length - 1;
+  for (let i = 0; i < origin.length; i++) {
+    if (origin[i] >= anchor) {
+      index = i;
+      break;
+    }
+  }
+  return { settings: { ...settings }, cards, index, revealed: false, viewed: new Set(), marks: new Map() };
 }
 
 export function currentCard(session: SpeedSession): Word | undefined {

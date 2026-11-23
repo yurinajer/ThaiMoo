@@ -1,9 +1,10 @@
-// 中译泰默写回归测试：提交门槛、提交前不泄露答案、提交后展示正确答案与转义；
+// 中译泰默写回归测试：默写改成可选后的正面/背面内容、提交门槛、答案不提前泄露、转义；
 // 外加朗读小喇叭的回归（跟读入口已删除、录音数据层保留、喇叭不翻卡、热区与避让）。
 // 运行：node tests/review-dictation.test.mjs
 // 隔离性：只在 node 进程内的 fake-indexeddb（内存实现）里加载模块，进程退出即消失，
 // 不会接触浏览器里的 ThaiLearnDB、本地学习数据或线上数据。
 import 'fake-indexeddb/auto';
+import { readFileSync } from 'node:fs';
 import { createServer } from 'vite';
 
 // escapeHtml 走的是浏览器的 textContent→innerHTML 语义（只转义 & < >），
@@ -30,7 +31,7 @@ const server = await createServer({
 const reviewPage = await server.ssrLoadModule('/src/pages/review.ts');
 await server.close();
 
-const { canSubmitDictation, dictationCardHtml, dictationRevealHtml } = reviewPage;
+const { canSubmitDictation, dictationQuestionHtml, dictationAnswerHtml } = reviewPage;
 
 const results = [];
 let failed = 0;
@@ -60,15 +61,19 @@ check('泰文输入允许提交', canSubmitDictation('ก') === true);
 check('前后带空格的泰文输入允许提交', canSubmitDictation('  สวัสดี  ') === true);
 check('任意非空文本都允许提交（不自动判拼写）', canSubmitDictation('hello') === true);
 
-// ---------- 2. 提交前卡片：只有中文，绝不出现泰文答案 ----------
+// ---------- 2. 正面（题干面）：只有中文，绝不出现泰文答案 ----------
 {
-  const html = dictationCardHtml(word);
-  check('卡片显示中文释义', html.includes('你好'));
-  check('卡片显示词性', html.includes('感叹词'));
-  check('卡片不含泰文答案', !html.includes(word.thai));
-  check('卡片不含罗马音', !html.includes(word.romanization));
-  check('卡片不含例句', !html.includes(word.example));
-  check('卡片不含声调标签', !html.includes('tag-tone'));
+  const html = dictationQuestionHtml(word);
+  check('正面显示中文释义', html.includes('你好'));
+  check('正面显示词性', html.includes('感叹词'));
+  check('正面不含泰文答案', !html.includes(word.thai));
+  check('正面不含罗马音', !html.includes(word.romanization));
+  check('正面不含例句', !html.includes(word.example));
+  check('正面不含声调标签', !html.includes('tag-tone'));
+  check('正面不含「你的答案」「正确答案」字样', !html.includes('你的答案') && !html.includes('正确答案'));
+  check('提供「默写」入口按钮', /id="btn-dictation-toggle"[^>]*>默写</.test(html));
+  check('默写入口默认收起（aria-expanded=false）', /id="btn-dictation-toggle"[^>]*aria-expanded="false"/.test(html));
+  check('默写区默认收起（panel 带 hidden）', /id="dictation-panel"[^>]*\shidden/.test(html));
   check('提供泰文输入框（lang=th）', html.includes('id="dictation-input"') && html.includes('lang="th"'));
   check('输入框关闭自动更正/大写/拼写检查',
     html.includes('autocomplete="off"') && html.includes('autocapitalize="off"')
@@ -76,31 +81,50 @@ check('任意非空文本都允许提交（不自动判拼写）', canSubmitDict
   check('提交按钮初始为禁用（空输入不可提交）',
     /id="btn-submit-dictation"[^>]*disabled/.test(html));
   check('提交按钮文案为「提交答案」', html.includes('提交答案'));
-  check('答案展示区初始隐藏', /id="dictation-reveal"[^>]*style="display:none;"/.test(html));
-  check('「你的答案」标签初始隐藏', /id="dictation-user-label"[^>]*style="display:none;"/.test(html));
+  check('正面提示可以直接翻卡看答案', html.includes('翻转'));
 }
 
-// ---------- 3. 提交后展示：正确泰文 + 罗马音 + 声调 + 例句 ----------
+// ---------- 3. 背面（答案面）：泰文 + 罗马音 + 声调 + 详情，默写对照区默认隐藏 ----------
 {
-  const html = dictationRevealHtml(word);
+  const html = dictationAnswerHtml(word);
   check('展示正确泰文', html.includes(word.thai));
   check('展示罗马音', html.includes(word.romanization));
   check('展示逐音节声调标签', html.includes('tag-tone') && html.includes('低调'));
   check('展示泰文例句', html.includes(word.example));
-  check('提示用户自行评分', html.includes('自行评分'));
   check('标注「正确答案」', html.includes('正确答案'));
+  check('「你的答案」标签初始隐藏', /id="dictation-user-label"[^>]*style="display:none;"/.test(html));
+  check('「你的答案」内容区初始隐藏且为空', /id="dictation-user-answer"[^>]*style="display:none;"><\/div>/.test(html));
+  check('评分提示初始隐藏', /id="dictation-score-hint"[^>]*style="display:none;"/.test(html));
+  check('答案面不含喇叭（喇叭在卡盒右上角，由 JS 控制显隐）', !html.includes('card-speak'));
+  check('答案面提示可翻回中文', html.includes('翻回中文'));
+}
+
+// ---------- 3b. 答案面与泰→中 共用同一套详情字段 ----------
+{
+  const full = { ...word, exampleRoman: 'sà-wàt-dii khráp', exampleMeaning: '你好（男生说的）', note: '用于见面打招呼' };
+  const back = dictationAnswerHtml(full);
+  check('答案面展示例句罗马音', back.includes(full.exampleRoman));
+  check('答案面展示例句释义', back.includes(full.exampleMeaning));
+  check('答案面展示备注', back.includes('用于见面打招呼'));
+  check('正面不受详情字段影响，仍然不含例句罗马音', !dictationQuestionHtml(full).includes(full.exampleRoman));
+  const reviewSrcForReuse = readFileSync(new URL('../src/pages/review.ts', import.meta.url), 'utf8');
+  check('泰文侧（泰→中 正面与中→泰 背面）复用同一个题面构造',
+    (reviewSrcForReuse.match(/thaiFaceHtml\(/g) || []).length >= 3);
+  check('两个方向的详情区复用同一段构造，不各写一套',
+    (reviewSrcForReuse.match(/wordDetailsHtml\(/g) || []).length >= 3);
 }
 
 // ---------- 4. 可选字段缺失时不产生空节点 ----------
 {
   const bare = { id: 2, thai: 'กิน', meaning: '吃', toneMark: '' };
-  const cardHtml = dictationCardHtml(bare);
-  const revealHtml = dictationRevealHtml(bare);
-  check('无词性时卡片不渲染词性节点', !cardHtml.includes('dictation-pos'));
-  check('无罗马音时不渲染 card-roman', !revealHtml.includes('card-roman'));
-  check('无声调时不渲染声调标签', !revealHtml.includes('tag-tone'));
-  check('无例句时不渲染例句', !revealHtml.includes('font-family:var(--font-thai); margin-top:8px'));
-  check('仅有泰文与释义也能正常展示答案', revealHtml.includes('กิน'));
+  const questionHtml = dictationQuestionHtml(bare);
+  const answerHtml = dictationAnswerHtml(bare);
+  check('无词性时正面不渲染词性节点', !questionHtml.includes('dictation-pos'));
+  check('无罗马音时不渲染 card-roman', !answerHtml.includes('card-roman'));
+  check('无声调时不渲染声调标签', !answerHtml.includes('tag-tone'));
+  check('无例句时不渲染例句', !answerHtml.includes('font-family:var(--font-thai); margin-top:8px'));
+  check('无备注时不渲染备注', !answerHtml.includes('📝'));
+  check('仅有泰文与释义也能正常展示答案', answerHtml.includes('กิน'));
 }
 
 // ---------- 5. 转义：词条内容按 HTML 注入处理 ----------
@@ -112,18 +136,24 @@ check('任意非空文本都允许提交（不自动判拼写）', canSubmitDict
     pos: '<script>alert(2)</script>',
     toneMark: '',
     example: '<iframe></iframe>',
+    exampleRoman: '<svg onload=alert(3)>',
+    exampleMeaning: '<a href=javascript:alert(4)>link</a>',
+    note: '<style>body{display:none}</style>',
   };
-  const cardHtml = dictationCardHtml(evil);
-  const revealHtml = dictationRevealHtml(evil);
-  check('释义中的标签被转义', cardHtml.includes('&lt;b&gt;') && !cardHtml.includes('<b>你好'));
-  check('词性中的 script 被转义', !cardHtml.includes('<script>'));
-  check('泰文答案中的标签被转义', !revealHtml.includes('<img src=x'));
-  check('例句中的 iframe 被转义', !revealHtml.includes('<iframe>'));
+  const questionHtml = dictationQuestionHtml(evil);
+  const answerHtml = dictationAnswerHtml(evil);
+  check('释义中的标签被转义', questionHtml.includes('&lt;b&gt;') && !questionHtml.includes('<b>你好'));
+  check('词性中的 script 被转义', !questionHtml.includes('<script>'));
+  check('泰文答案中的标签被转义', !answerHtml.includes('<img src=x'));
+  check('例句中的 iframe 被转义', !answerHtml.includes('<iframe>'));
+  check('例句罗马音被转义', !answerHtml.includes('<svg onload'));
+  check('例句释义被转义', !answerHtml.includes('<a href=javascript'));
+  check('备注被转义', !answerHtml.includes('<style>body'));
 }
 
 // ---------- 6. 朗读小喇叭：跟读入口删除，朗读本身保持原样 ----------
 {
-  const { readFileSync, existsSync } = await import('node:fs');
+  const { existsSync } = await import('node:fs');
   const src = rel => readFileSync(new URL(`../src/${rel}`, import.meta.url), 'utf8');
   const css = src('styles/components.css');
   const reviewSrc = src('pages/review.ts');
@@ -169,13 +199,19 @@ check('任意非空文本都允许提交（不自动判拼写）', canSubmitDict
   check('喇叭点击先拦掉冒泡，不会翻卡', /e\.stopPropagation\(\)/.test(speakSrc));
   check('朗读失败只提示，不改卡片状态', /showError\(result\.reason \|\| '朗读失败'\)/.test(speakSrc));
   check('喇叭标记为可访问按钮',
-    /<button class="card-speak" type="button" aria-label="朗读该单词">/.test(dictationRevealHtml(word)));
+    /<button class="card-speak" type="button" aria-label="朗读该单词">/.test(speakSrc));
   check('喇叭图标是内联 SVG，不用 emoji', /<svg[^>]*aria-hidden="true"/.test(speakSrc) && !/🔊/.test(reviewSrc) && !/🔊/.test(detailSrc));
 
-  // 默写模式：提交前不给读音，提交后喇叭跟答案一起出现
-  check('提交前的默写卡片没有喇叭', !dictationCardHtml(word).includes('card-speak'));
-  check('提交后的答案区有喇叭', dictationRevealHtml(word).includes('card-speak'));
-  check('默写提交后才绑定喇叭', /bindSpeakButton\(reveal, item\.word\.thai\)/.test(reviewSrc));
+  // 中→泰：读音等于答案，所以喇叭要等答案面露出（翻卡或提交默写）才亮、才绑
+  check('两种题型都在卡盒里渲染同一个喇叭',
+    (reviewSrc.match(/speakButtonHtml\(\)/g) || []).length >= 2);
+  check('默写正面与答案面都不内嵌喇叭', !dictationQuestionHtml(word).includes('card-speak')
+    && !dictationAnswerHtml(word).includes('card-speak'));
+  check('中→泰 开卡时先把喇叭藏起来', /speakBtn\.style\.display = 'none';/.test(reviewSrc));
+  check('答案露出后才点亮并绑定喇叭',
+    /const revealAnswer = \(\): void => \{[\s\S]*?speakBtn\.style\.display = '';[\s\S]*?bindSpeakButton\(card, item\.word\.thai\);/.test(reviewSrc));
+  check('泰→中 保持原样：开卡即绑定喇叭',
+    /if \(mode === 'thai-to-cn'\) \{\s*bindSpeakButton\(card, item\.word\.thai\);/.test(reviewSrc));
 
   // 布局：按钮在卡片内部右侧，不是屏幕悬浮；热区够大且不压内容
   check('喇叭热区至少 44×44', /\.card-speak \{\s*display: inline-flex;[\s\S]*?width: 44px;\s*height: 44px;/.test(css));
@@ -198,6 +234,64 @@ check('任意非空文本都允许提交（不自动判拼写）', canSubmitDict
 
   // 复习页不因为这次改动多出任何写库路径
   check('朗读路径不碰数据库', !/\bdb\./.test(reviewSrc) && !/voiceClips|speedStatuses|reviewStates/.test(reviewSrc));
+}
+
+// ---------- 7. 交互规则：翻卡不靠默写，默写只是可选练习 ----------
+{
+  const src = rel => readFileSync(new URL(`../src/${rel}`, import.meta.url), 'utf8');
+  const css = src('styles/components.css');
+  const reviewSrc = src('pages/review.ts');
+  const speedSrc = src('pages/speedbrush.ts');
+
+  // 旧的强制默写外壳彻底退役
+  check('中→泰 不再套独立的默写卡外壳',
+    !/className = 'dictation-card'/.test(reviewSrc) && !/id="dictation-card"/.test(reviewSrc));
+  check('默写卡走公共翻卡外壳', /card\.className = 'flashcard review-card';/.test(reviewSrc));
+  check('旧的 .dictation-reveal 卡片与样式一并退役',
+    !/dictation-reveal/.test(reviewSrc) && !/\.dictation-reveal\b/.test(css));
+
+  // 翻卡：两个方向共用一个监听，翻面判断里不含任何默写条件
+  const flipHandler = (reviewSrc.match(/card\.addEventListener\('click', \(\) => \{[\s\S]*?\n    \}\);/) || [''])[0];
+  check('翻卡监听只有一处，两种题型共用',
+    (reviewSrc.match(/card\.addEventListener\('click'/g) || []).length === 1);
+  check('翻卡处理器里不检查默写，翻面就露答案',
+    flipHandler.includes('revealAnswer()') && !flipHandler.includes('canSubmitDictation'));
+
+  // 露答案：六档按钮与评分状态只由「答案是否露出」驱动，而且只做一次
+  const revealBody = (reviewSrc.match(/const revealAnswer = \(\): void => \{[\s\S]*?\n    \};/) || [''])[0];
+  check('六档按钮出现只由答案露出驱动',
+    revealBody.includes("fsrsButtons.style.display = 'grid'") && !revealBody.includes('canSubmitDictation'));
+  check('答案露出只结算一次，重复翻面不重复绑喇叭', /if \(answerShown\) return;/.test(revealBody));
+
+  // 可选默写：入口在正面，面板里的点击不冒泡成翻卡
+  check('中→泰 标签文案写明默写只是可选项',
+    /data-mode="cn-to-thai">中文 → 泰文 · 可选默写<\/button>/.test(reviewSrc));
+  check('默写入口点击不冒泡，面板点击也不冒泡',
+    /toggle\.addEventListener\('click', \(e\) => \{\s*e\.stopPropagation\(\);/.test(reviewSrc)
+    && /panel\.addEventListener\('click', \(e\) => e\.stopPropagation\(\)\);/.test(reviewSrc));
+  check('默写面板靠 hidden 收起', /panel\.hidden = !panel\.hidden;/.test(reviewSrc)
+    && /#dictation-panel\[hidden\] \{\s*display: none;\s*\}/.test(css));
+  check('入口文案随状态回显（已默写）', /toggle\.textContent = '已默写';/.test(reviewSrc));
+
+  // 提交默写：写进「你的答案」再翻到答案面，全程不碰数据库
+  const submitBody = (reviewSrc.match(/const submitAnswer = \(\) => \{[\s\S]*?\n      \};/) || [''])[0];
+  check('提交默写只是本地翻面，不写库也不改排期',
+    submitBody.length > 0
+    && !/gradeReview|addErrorRecord|saveSpeedStatus|\bdb\./.test(submitBody)
+    && !/await /.test(submitBody));
+  check('提交后翻到答案面并露出评分按钮',
+    /isFlipped = true;\s*card\.classList\.add\('flipped'\);\s*revealAnswer\(\);/.test(submitBody));
+  check('提交后收起面板并把提交入口置灰，重复点击不会再走一遍提交流程',
+    submitBody.includes('submitBtn.disabled = true;') && submitBody.includes('panel.hidden = true;'));
+  check('「你的答案」用 textContent 写入，不拼 HTML',
+    /userAnswer\.textContent = input\.value;/.test(reviewSrc) && !/userAnswer\.innerHTML/.test(reviewSrc));
+  check('提交门槛仍然只挡默写本身',
+    (reviewSrc.match(/canSubmitDictation\(input\.value\)/g) || []).length === 2);
+
+  // 详情抽屉/速刷等既有入口不受本次改动波及
+  check('速刷页没有引用复习页的默写构造', !/dictationQuestionHtml|dictationAnswerHtml|pages\/review/.test(speedSrc));
+  check('卡面泰文长词按字符折行，不顶穿卡盒',
+    /\.flashcard\.review-card \.thai-text-lg \{\s*overflow-wrap: anywhere;\s*\}/.test(css));
 }
 
 // ---------- 汇总 ----------
